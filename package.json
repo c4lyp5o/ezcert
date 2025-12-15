@@ -1,15 +1,41 @@
 {
-  "name": "ezcert",
-  "version": "1.0.50",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
-  },
-  "dependencies": {
-    "elysia": "latest"
-  },
-  "devDependencies": {
-    "bun-types": "latest"
-  },
-  "module": "src/index.js"
+	"name": "ezcert",
+	"version": "1.0.0",
+	"scripts": {
+		"install:client": "cd client && bun install",
+		"install:server": "bun install",
+		"install:all": "npm run install:server && npm run install:client",
+		"dev:client": "cd client && bun dev",
+		"dev:server": "bun --env-file .env --watch src/index.js",
+		"dev": "conc -n \"CLIENT,API\" -c \"cyan,magenta\" \"npm run dev:client\" \"npm run dev:server\"",
+		"build-client": "cd client && bun run build",
+		"build:all": "npm run build-client",
+		"start": "pm2-runtime start ecosystem.config.js --env production",
+		"stop": "pm2 stop all",
+		"restart": "pm2 restart all",
+		"logs": "pm2 monit",
+		"db:push": "drizzle-kit push",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:studio": "drizzle-kit studio"
+	},
+	"dependencies": {
+		"@elysiajs/cors": "^1.4.0",
+		"@elysiajs/jwt": "^1.4.0",
+		"drizzle-orm": "^0.45.1",
+		"elysia": "latest",
+		"nodemailer": "^7.0.11",
+		"pdfkit": "^0.17.2",
+		"pg": "^8.16.3"
+	},
+	"devDependencies": {
+		"@types/nodemailer": "^7.0.4",
+		"@types/pdfkit": "^0.17.4",
+		"@types/pg": "^8.16.0",
+		"bun-types": "latest",
+		"concurrently": "^9.2.1",
+		"drizzle-kit": "^0.31.8",
+		"tsx": "^4.21.0"
+	},
+	"module": "src/index.js"
 }

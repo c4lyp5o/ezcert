@@ -261,10 +261,7 @@
 
   function openQrModal(event: EventRow) {
     activeQrEvent = event;
-    activeQrSvg = encodeQR(eventLink(event), "svg").replace(
-      'fill="black"',
-      'fill="#2563eb"',
-    );
+    activeQrSvg = encodeQR(eventLink(event), "svg");
     showQrModal = true;
   }
 

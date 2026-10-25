@@ -61,6 +61,19 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Throwaway database for the container smoke test below
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -76,11 +89,13 @@ jobs:
             echo "no .env in image"
           '
 
-      # Boots the server against an unreachable database, only to prove it starts, validates
-      # its env (encryption key) and answers HTTP; real DB behaviour is covered by the tests.
+      # The image runs in production mode (pm2 --env production), which refuses to start without
+      # secrets and a database TLS policy, so give it a production-style environment. The CI Postgres
+      # has no TLS and no tables; we only need the server to boot and answer HTTP (the test suite
+      # covers real database behaviour).
       - name: Container starts and answers HTTP
         run: |
-          docker run -d --name ezcert-smoke -p 5000:5000             -e NODE_ENV=development             -e DATA_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)"             -e POSTGRES_URL=postgres://u:p@127.0.0.1:5432/none             ezcert:ci
+          docker run -d --name ezcert-smoke --network host             -e JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e SUPER_JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e MAGIC_JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e DATA_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)"             -e POSTGRES_URL=postgres://postgres:ci-only@127.0.0.1:5432/postgres             -e DB_ALLOW_INSECURE=true             ezcert:ci
           for i in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/v1/events/00000000-0000-4000-8000-000000000000 || true)
             [ "$code" != "000" ] && echo "HTTP $code" && exit 0

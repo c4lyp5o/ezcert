@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed: major dependency upgrades
+- Server: `nodemailer` 7 → 10, `pdfkit` 0.17 → 0.20, `@types/nodemailer` 7 → 8, `concurrently` 9 → 10 (dev). Client: `lucide-svelte` 0.561 → 1.0, `qr` 0.5 → 0.7.
+- Certificates are unchanged: the PDF drawing instructions of all four built-in templates and the landscape/portrait custom designs are identical before and after. QR codes (SVG and matrix) and email messages are identical too. The PDFs only gain a `/UserUnit 1` entry (the default page unit).
+- Held back on purpose: `bun-types` 1.4 (must match the installed Bun) and TypeScript 7 (the native build crashes under `bunx`, and SvelteKit 3 wants 6).
+
 ### Changed: SvelteKit 3
 - Client upgraded to SvelteKit 3, Vite 8, `@sveltejs/vite-plugin-svelte` 7, `@sveltejs/adapter-static` 4 and TypeScript 6, using `sv migrate sveltekit-3`. Needs Node 22.17+ for the client tooling.
 - `svelte.config.js` is gone; its options moved into `sveltekit()` in `client/vite.config.ts`. `$lib` imports became `#lib` subpath imports, and `client/tsconfig.json` extends `$app/tsconfig`.

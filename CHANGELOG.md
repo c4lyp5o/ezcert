@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed: SvelteKit 3
+- Client upgraded to SvelteKit 3, Vite 8, `@sveltejs/vite-plugin-svelte` 7, `@sveltejs/adapter-static` 4 and TypeScript 6, using `sv migrate sveltekit-3`. Needs Node 22.17+ for the client tooling.
+- `svelte.config.js` is gone; its options moved into `sveltekit()` in `client/vite.config.ts`. `$lib` imports became `#lib` subpath imports, and `client/tsconfig.json` extends `$app/tsconfig`.
+- No user-facing or API change.
+
 ### Added: light/dark theme toggle
 - Organiser and attendee pages (landing, login, register, dashboard, designer, check-in, verify) have a light/dark toggle (bottom-right). It defaults to the OS preference and is remembered per browser (`localStorage` key `ezcert-theme`), and is applied before first paint so there is no flash.
 - Superadmin pages (`/acolyte`) are unchanged.

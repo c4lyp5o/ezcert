@@ -6,7 +6,7 @@ Guidance for AI coding agents (Claude Code, Codex, Cursor, etc.) working in this
 
 EzCert is a multi-tenant event attendance and PDF certificate app.
 - **Backend:** Bun + Elysia + Drizzle (Postgres), in `src/`.
-- **Frontend:** SvelteKit 5 SPA, in `client/`.
+- **Frontend:** SvelteKit 3 (Svelte 5, Vite 8) SPA, in `client/`.
 
 Read [README.md](README.md) for the API table and user flows.
 
@@ -66,5 +66,7 @@ Before declaring work done, run `bun run test` and `bun run typecheck`. If the c
 - `bun test` auto-loads `.env`. The test setup forces `LOG_LEVEL=silent` and mocks the DB, so tests never hit the real DB. Keep it that way: don't import `pg` directly in code under test.
 - `mock.module` in `tests/setup.ts` must run before `src/app.ts` is imported. Don't import app code from `setup.ts`.
 - The client uses `adapter-static` with an SPA fallback, so pages must not rely on SSR (`ssr = false` at the root layout).
+- SvelteKit 3: there is no `svelte.config.js`. Kit options (adapter, preprocess) are passed to `sveltekit()` in `client/vite.config.ts`. Import from `src/lib` with `#lib/...` and include the file extension (`#lib/auth.svelte.js`, not `$lib/auth.svelte`); the alias lives under `imports` in `client/package.json`. The `goto` options are `replace` and `reset`, not `replaceState` and `noScroll`.
+- The client needs TypeScript 6 (SvelteKit 3), while the server type-check is pinned to 5.9.3 in the root `typecheck` script (the TypeScript 7 native build crashes under `bunx`). Don't unify them.
 - Superadmin UI routes are deliberately obscure (`/acolyte`, `/acolyte/altar`), and some API names are themed (`/souls` = tenants, `conjurations` = event count). Keep these names; the client depends on them.
 - On Windows the repo uses CRLF on checkout (`core.autocrlf`). Write files with LF; git normalises them.

@@ -3,7 +3,7 @@
   import { getLocalTimeZone, today } from "@internationalized/date";
   import encodeQR from "qr";
 
-  import { session, logoutUser } from "$lib/auth.svelte";
+  import { session, logoutUser } from "#lib/auth.svelte.js";
 
   // The API never sends a full IC to the browser; icMasked is "******-**-1234"
   type Attendee = {

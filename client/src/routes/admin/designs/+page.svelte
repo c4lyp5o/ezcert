@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { errorMessage, importedDraft } from "$lib/designs.svelte";
+  import { errorMessage, importedDraft } from "#lib/designs.svelte.js";
 
   let { data } = $props();
   let designs = $derived(data.designs);

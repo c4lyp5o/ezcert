@@ -1,8 +1,8 @@
 <script lang="ts">
-  import favicon from "$lib/assets/favicon.svg";
+  import favicon from "#lib/assets/favicon.svg";
   import { page } from "$app/state";
   import { Sun, Moon } from "lucide-svelte";
-  import { initialTheme, saveTheme, type Theme } from "$lib/theme";
+  import { initialTheme, saveTheme, type Theme } from "#lib/theme.js";
   import "../app.css";
 
   let { children } = $props();

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, fly, slide } from "svelte/transition";
-  import { logoutSuperAdmin } from "$lib/superAuth.svelte";
+  import { logoutSuperAdmin } from "#lib/superAuth.svelte.js";
 
   let { data } = $props();
   let requests = $derived(data.pendingTenants || []);

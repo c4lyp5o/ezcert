@@ -2,6 +2,7 @@
   import { Label } from "bits-ui";
   import { getLocalTimeZone, today } from "@internationalized/date";
   import encodeQR from "qr";
+  import { Copy, FileSpreadsheet, Trash2 } from "lucide-svelte";
 
   import { session, logoutUser } from "#lib/auth.svelte.js";
 
@@ -550,25 +551,41 @@
                   </a>
                   <button
                     onclick={() => copyLink(event)}
-                    class="text-zinc-400 hover:text-white text-xs"
-                    title="Copy check-in link">Copy</button
+                    class="text-zinc-400 hover:text-white transition-colors"
+                    title="Copy check-in link"
+                    aria-label="Copy check-in link"
                   >
+                    <Copy class="w-4 h-4" />
+                  </button>
                   {#if event.attendees?.length}
                     <a
                       href={exportUrl(event)}
-                      class="text-zinc-400 hover:text-white text-xs"
+                      class="text-zinc-400 hover:text-green-400 transition-colors"
                       title={event.collectIc
                         ? "Export attendees incl. IC numbers (CSV, for CPD)"
-                        : "Export attendees (CSV)"}>CSV</a
+                        : "Export attendees (CSV)"}
+                      aria-label="Export attendees as CSV"
                     >
+                      <FileSpreadsheet class="w-4 h-4" />
+                    </a>
                   {:else}
-                    <span class="text-zinc-400 text-xs opacity-30">CSV</span>
+                    <span
+                      class="text-zinc-400 opacity-30 cursor-not-allowed"
+                      title="Export attendees (CSV): no attendees yet"
+                      role="img"
+                      aria-label="Export attendees as CSV (no attendees yet)"
+                    >
+                      <FileSpreadsheet class="w-4 h-4" />
+                    </span>
                   {/if}
                   <button
                     onclick={() => deleteEvent(event)}
-                    class="text-zinc-500 hover:text-red-400 text-xs"
-                    title="Delete event">Delete</button
+                    class="text-zinc-500 hover:text-red-400 transition-colors"
+                    title="Delete event"
+                    aria-label="Delete event"
                   >
+                    <Trash2 class="w-4 h-4" />
+                  </button>
                 </td>
               </tr>
             {/each}

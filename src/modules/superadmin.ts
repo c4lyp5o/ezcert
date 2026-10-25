@@ -1,10 +1,12 @@
 import { Elysia, t } from "elysia";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import nodemailer from "nodemailer";
 
 import { db } from "../db";
 import { events, tenants } from "../db/schema";
 import { activationEmailTemplate } from "../email-templates";
+import { authPlugin } from "../plugins/auth";
+import { logger, maskEmail } from "../logger";
 
 const transporter = nodemailer.createTransport({
 	host: process.env.EMAIL_HOST || "***REMOVED***",
@@ -12,127 +14,119 @@ const transporter = nodemailer.createTransport({
 	secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
 	auth: {
 		user: process.env.EMAIL_USER || "***REMOVED***",
-		pass: process.env.EMAIL_PASS || "***REMOVED***",
+		// .env.example documents EMAIL_PASSWORD; EMAIL_PASS kept for backward compat
+		pass:
+			process.env.EMAIL_PASSWORD ||
+			process.env.EMAIL_PASS ||
+			"***REMOVED***",
 	},
 });
 
-const superadminsModule = new Elysia({ prefix: "/api/v1/superadmin" })
-	.macro({
-		jwtAuth: (enabled: true) => ({
-			resolve: async ({ jwtSuper, cookie: { super_token }, status }) => {
-				console.log("Superadmin JWT Auth Macro Invoked");
-				const token = super_token.value;
-				if (!token) return status(401, "No cookie found");
+const tenantColumns = {
+	id: tenants.id,
+	name: tenants.name,
+	email: tenants.email,
+	status: tenants.status,
+	createdAt: tenants.createdAt,
+};
 
-				const profile = await jwtSuper.verify(token);
-				// console.log("Verified superadmin profile:", profile);
-				if (!profile) return status(401, "Invalid token");
-				return { user: profile };
-			},
-		}),
-	})
-	.get(
-		"/pending",
-		async () => {
-			return await db
-				.select()
-				.from(tenants)
-				.where(eq(tenants.status, "PENDING"));
-		},
-		{ jwtAuth: true },
+const superadminsModule = new Elysia({ prefix: "/api/v1/superadmin" })
+	.use(authPlugin)
+	.guard({ superAuth: true })
+	.get("/pending", () =>
+		db
+			.select(tenantColumns)
+			.from(tenants)
+			.where(eq(tenants.status, "PENDING"))
+			.orderBy(tenants.createdAt),
 	)
 	.post(
 		"/approve",
-		async ({ jwtMagic, body }) => {
-			const result = await db
+		async ({ jwtMagic, body, status }) => {
+			// AWAITING_ACTIVATION is allowed so approving again re-sends the email
+			const [tenant] = await db
 				.update(tenants)
 				.set({ status: "AWAITING_ACTIVATION" })
-				.where(eq(tenants.email, body.email))
+				.where(
+					and(
+						eq(tenants.email, body.email),
+						inArray(tenants.status, ["PENDING", "AWAITING_ACTIVATION"]),
+					),
+				)
 				.returning();
 
-			if (result.length === 0) return { error: "Tenant not found" };
-
-			const tenant = result[0];
+			if (!tenant) return status(404, "Tenant not found or already processed");
 
 			const token = await jwtMagic.sign({ tenantId: tenant.id });
-			// 2. Generate "Magic Link" (Simulated)
-			// In production, this would be a JWT token valid for 1 hour
-			// const magicLink = `http://localhost:3000/login?token=magic-${tenant.id}`;
 			const activationLink = `${process.env.DOMAIN_NAME}/activate?token=${token}`;
 
-			// 3. Send Email
-			await transporter.sendMail({
-				from: '"EzCert Admin" <admin@ezcert.com>',
-				to: tenant.email,
-				subject: "Action Required: Activate your EzCert Account",
-				html: activationEmailTemplate(activationLink),
-			});
+			try {
+				await transporter.sendMail({
+					from: process.env.EMAIL_FROM || '"EzCert Admin" <admin@ezcert.com>',
+					to: tenant.email,
+					subject: "Action Required: Activate your EzCert Account",
+					html: activationEmailTemplate(activationLink),
+				});
+			} catch (error) {
+				logger.error(`Failed to send activation email to ${maskEmail(tenant.email)}`, error);
+				return status(
+					502,
+					"Approved, but the activation email failed to send. Approve again to retry.",
+				);
+			}
 
+			logger.info(`Tenant approved, activation email sent: ${maskEmail(tenant.email)}`);
 			return { success: true, message: "Approved email sent" };
 		},
 		{
-			jwtAuth: true,
 			body: t.Object({ email: t.String() }),
 		},
 	)
 	.post(
 		"/reject",
-		async ({ body }) => {
-			await db
+		async ({ body, status }) => {
+			const rejected = await db
 				.update(tenants)
 				.set({ status: "REJECTED" })
-				.where(eq(tenants.email, body.email));
+				.where(and(eq(tenants.email, body.email), eq(tenants.status, "PENDING")))
+				.returning({ id: tenants.id });
 
+			if (rejected.length === 0) return status(404, "Pending tenant not found");
+			logger.info(`Tenant registration rejected: ${maskEmail(body.email)}`);
 			return { success: true, message: "Registration rejected." };
 		},
 		{
-			jwtAuth: true,
 			body: t.Object({ email: t.String() }),
 		},
 	)
-	.get(
-		"/events",
-		async () => {
-			const result = await db.select().from(events).orderBy(events.date);
-			return result;
-		},
-		{ jwtAuth: true },
-	)
-	.get(
-		"/souls",
-		async () => {
-			// We want all tenants that are NOT pending
-			// We also want to count their events
-			// Ideally we use a 'group by', but for simplicity with relations:
-			const souls = await db.query.tenants.findMany({
-				where: (tenants, { ne }) => ne(tenants.status, "PENDING"),
-				with: {
-					events: {
-						columns: { id: true },
-					},
-				},
-			});
+	.get("/events", () => db.select().from(events).orderBy(events.date))
+	.get("/souls", async () => {
+		// All non-pending tenants, with their event count
+		const souls = await db.query.tenants.findMany({
+			where: (tenants, { ne }) => ne(tenants.status, "PENDING"),
+			columns: { id: true, name: true, email: true, status: true },
+			with: { events: { columns: { id: true } } },
+		});
 
-			return souls.map((s) => ({
-				id: s.id,
-				name: s.name,
-				email: s.email,
-				status: s.status,
-				conjurations: s.events.length,
-			}));
-		},
-		{ jwtAuth: true },
-	)
+		return souls.map(({ events, ...soul }) => ({
+			...soul,
+			conjurations: events.length,
+		}));
+	})
 	.delete(
 		"/souls/:id",
-		async ({ params: { id } }) => {
-			// Due to ON DELETE CASCADE in the schema, deleting the tenant will
-			// automatically delete associated events and attendees.
-			await db.delete(tenants).where(eq(tenants.id, id));
+		async ({ params: { id }, status }) => {
+			// ON DELETE CASCADE removes the tenant's events and attendees
+			const deleted = await db
+				.delete(tenants)
+				.where(eq(tenants.id, id))
+				.returning({ id: tenants.id });
 
+			if (deleted.length === 0) return status(404, "Soul not found");
+			logger.warn(`Tenant ${id} deleted by superadmin (events and attendees cascaded)`);
 			return { success: true, message: "Soul vanquished" };
 		},
-		{ jwtAuth: true },
+		{ params: t.Object({ id: t.String({ format: "uuid" }) }) },
 	);
 
 export default superadminsModule;

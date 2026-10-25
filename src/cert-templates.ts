@@ -1,12 +1,26 @@
+export const TEMPLATE_IDS = [
+	"default",
+	"tech-dark",
+	"elegant-gold",
+	"retro-pixel",
+] as const;
+
+const SIDE_MARGIN = 60;
+const MIN_FONT_SIZE = 10;
+
 type CertData = {
 	attendeeName: string;
 	tenantName: string;
 	eventName: string;
 	date: string;
 	location: string;
+	certificateId?: string;
 };
 
-// Helper to center text
+const FOOTER_OFFSET = 28;
+const FOOTER_SIZE = 8;
+
+// Helper to center text on one line, shrinking the font until it fits the page
 function centerText(
 	doc: PDFKit.PDFDocument,
 	text: string,
@@ -15,11 +29,16 @@ function centerText(
 	font: string = "Helvetica",
 	color: string = "black",
 ) {
-	doc
-		.font(font)
-		.fontSize(size)
-		.fillColor(color)
-		.text(text, 0, y, { align: "center", width: doc.page.width });
+	const maxWidth = doc.page.width - SIDE_MARGIN * 2;
+	doc.font(font).fontSize(size);
+	while (size > MIN_FONT_SIZE && doc.widthOfString(text) > maxWidth) {
+		doc.fontSize(--size);
+	}
+	doc.fillColor(color).text(text, SIDE_MARGIN, y, {
+		align: "center",
+		width: maxWidth,
+		lineBreak: false,
+	});
 }
 
 export const generateCertificate = (
@@ -76,7 +95,7 @@ export const generateCertificate = (
 			centerText(
 				doc,
 				`${data.date} • ${data.location}`,
-				400,
+				420,
 				12,
 				"Helvetica",
 				"#71717a",
@@ -179,7 +198,7 @@ export const generateCertificate = (
 			centerText(
 				doc,
 				`// ${data.date} @ ${data.location}`,
-				380,
+				400,
 				12,
 				"Courier",
 				"#15803d",
@@ -221,11 +240,23 @@ export const generateCertificate = (
 			centerText(
 				doc,
 				`${data.date} • ${data.location}`,
-				360,
+				380,
 				12,
 				"Helvetica",
 				"#666",
 			);
 			break;
+	}
+
+	// Lets anyone check the certificate at /verify/:id
+	if (data.certificateId) {
+		centerText(
+			doc,
+			`Certificate ID: ${data.certificateId}`,
+			height - FOOTER_OFFSET,
+			FOOTER_SIZE,
+			"Helvetica",
+			"#9ca3af",
+		);
 	}
 };

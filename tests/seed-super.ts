@@ -1,14 +1,27 @@
+// Usage: SUPER_USERNAME=oracle SUPER_PASSWORD='long-secret' bun run db:seed-super
 import { db } from "../src/db";
 import { superAdmins } from "../src/db/schema";
+import { logger } from "../src/logger";
 
-const username = "***REMOVED***";
-const password = "***REMOVED***";
+const MIN_PASSWORD_LENGTH = 12;
 
-const hashedPassword = await Bun.password.hash(password);
+const username = process.env.SUPER_USERNAME;
+const password = process.env.SUPER_PASSWORD;
+
+if (!username || !password || password.length < MIN_PASSWORD_LENGTH) {
+	logger.fatal(
+		`Set SUPER_USERNAME and SUPER_PASSWORD (min ${MIN_PASSWORD_LENGTH} chars) to seed a superadmin.`,
+	);
+	await logger.flush();
+	process.exit(1);
+}
 
 await db.insert(superAdmins).values({
 	username,
-	password: hashedPassword,
+	password: await Bun.password.hash(password),
 });
 
-console.log(`❖ Superadmin [${username}] has been inscribed.`);
+logger.success(`❖ Superadmin [${username}] has been inscribed.`);
+await logger.flush();
+// The pg client keeps the event loop alive; exit explicitly
+process.exit(0);

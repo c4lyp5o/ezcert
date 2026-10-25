@@ -1,46 +1,28 @@
 // server/src/index.ts
-import { Elysia } from "elysia";
-import { cors } from "@elysiajs/cors";
-import { jwt } from "@elysiajs/jwt";
+import { app } from "./app";
+import { assertEncryptionConfigured } from "./crypto/pii";
+import { logger } from "./logger";
 
-import registrationModule from "./modules/register";
-import authModule from "./modules/auth";
-import adminModule from "./modules/admin";
-import superadminsModule from "./modules/superadmin";
-import publicModule from "./modules/public";
+// Without the key, participant data can't be stored or read; fail at boot, not at first check-in
+try {
+	assertEncryptionConfigured();
+} catch (error) {
+	logger.fatal((error as Error).message);
+	await logger.flush();
+	process.exit(1);
+}
 
 const PORT = process.env.PORT || 5000;
 
-const app = new Elysia();
+process.on("unhandledRejection", (reason) =>
+	logger.error("Unhandled promise rejection", reason),
+);
 
-app
-	.use(cors())
-	.use(
-		jwt({
-			name: "jwtTenant",
-			secret: process.env.JWT_SECRET || "tenant-secret",
-			exp: "7d",
-		}),
-	)
-	.use(
-		jwt({
-			name: "jwtSuper",
-			secret: process.env.SUPER_JWT_SECRET || "super-secret",
-			exp: "2h",
-		}),
-	)
-	.use(
-		jwt({
-			name: "jwtMagic",
-			secret: process.env.MAGIC_JWT_SECRET || "magic-secret",
-			exp: "1h",
-		}),
-	)
-	.use(registrationModule)
-	.use(authModule)
-	.use(adminModule)
-	.use(superadminsModule)
-	.use(publicModule)
-	.listen(PORT);
+// Largest legitimate body is a 10MB PPTX upload; reject anything bigger before parsing
+const MAX_REQUEST_BODY_BYTES = 12 * 1024 * 1024;
 
-console.log(`🦊 Backend running at ${app.server?.url}`);
+app.listen({ port: PORT, maxRequestBodySize: MAX_REQUEST_BODY_BYTES });
+
+logger.success(
+	`🦊 Backend running at ${app.server?.url} (${process.env.NODE_ENV ?? "development"})`,
+);

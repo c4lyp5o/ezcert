@@ -1,115 +1,49 @@
 import { Elysia, t } from "elysia";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "../db";
 import { superAdmins, tenants } from "../db/schema";
+import { authPlugin, cookieOptions } from "../plugins/auth";
+import { logger, maskEmail } from "../logger";
+
+const TENANT_SESSION_SECONDS = 7 * 24 * 60 * 60;
+const SUPER_SESSION_SECONDS = 60 * 60;
 
 const authModule = new Elysia({ prefix: "/api/v1/auth" })
-	.macro({
-		adminAuth: (enabled: true) => ({
-			resolve: async ({ jwtTenant, cookie: { admin_token }, status }) => {
-				console.log("Tenant JWT Auth Macro Invoked");
-				const token = admin_token.value;
-				if (!token) return status(401, "No cookie found");
-
-				const profile = await jwtTenant.verify(token);
-				if (!profile) return status(401, "Invalid token");
-				// console.log("Verified tenant profile:", profile);
-				return { user: profile };
-			},
-		}),
-		superAuth: (enabled: true) => ({
-			resolve: async ({ jwtSuper, cookie: { super_token }, status }) => {
-				console.log("Superadmin JWT Auth Macro Invoked");
-				const token = super_token.value;
-				if (!token) return status(401, "No cookie found");
-
-				const profile = await jwtSuper.verify(token);
-				// console.log("Verified superadmin profile:", profile);
-				if (!profile) return status(401, "Invalid token");
-				return { user: profile };
-			},
-		}),
-	})
-	// .post(
-	// 	"/verify",
-	// 	async ({ body }) => {
-	// 		// In our simple example, the token is "magic-" + UUID
-	// 		// In production, verify a JWT here
-	// 		const prefix = "magic-";
-
-	// 		if (!body.token.startsWith(prefix)) {
-	// 			return { success: false, message: "Invalid token format" };
-	// 		}
-
-	// 		const tenantId = body.token.slice(prefix.length);
-
-	// 		const result = await db
-	// 			.select()
-	// 			.from(tenants)
-	// 			.where(eq(tenants.id, tenantId));
-
-	// 		if (result.length === 0) {
-	// 			return { success: false, message: "User not found" };
-	// 		}
-
-	// 		const tenant = result[0];
-
-	// 		if (tenant.status !== "APPROVED") {
-	// 			return { success: false, message: "Account not approved yet" };
-	// 		}
-
-	// 		return {
-	// 			success: true,
-	// 			tenant: {
-	// 				id: tenant.id,
-	// 				name: tenant.name,
-	// 				email: tenant.email,
-	// 			},
-	// 		};
-	// 	},
-	// 	{
-	// 		body: t.Object({ token: t.String() }),
-	// 	},
-	// )
+	.use(authPlugin)
 	.post(
 		"/activate",
 		async ({ jwtMagic, body }) => {
-			let tenantId: string;
-
-			try {
-				const decoded = await jwtMagic.verify(body.token);
-				if (!decoded || !decoded.tenantId) {
-					return { success: false, message: "Invalid token" };
-				}
-				tenantId = decoded.tenantId;
-			} catch (err) {
-				console.error("Error verifying magic token:", err);
+			const decoded = await jwtMagic.verify(body.token);
+			if (!decoded || typeof decoded.tenantId !== "string") {
+				logger.warn("Activation attempted with invalid or expired token");
 				return { success: false, message: "Invalid or expired token" };
 			}
+			const tenantId = decoded.tenantId;
 
-			const result = await db
-				.select()
-				.from(tenants)
-				.where(eq(tenants.id, tenantId));
-			if (result.length === 0) {
-				return { success: false, message: "Invalid token" };
-			}
-
-			const tenant = result[0];
-
+			const tenant = await db.query.tenants.findFirst({
+				where: eq(tenants.id, tenantId),
+				columns: { status: true },
+			});
+			if (!tenant) return { success: false, message: "Invalid token" };
 			if (tenant.status === "ACTIVE") {
 				return { success: true, message: "Already active" };
 			}
-			if (tenant.status !== "AWAITING_ACTIVATION") {
+
+			// Conditional update guards against a concurrent reject/delete
+			const updated = await db
+				.update(tenants)
+				.set({ status: "ACTIVE" })
+				.where(
+					and(eq(tenants.id, tenantId), eq(tenants.status, "AWAITING_ACTIVATION")),
+				)
+				.returning({ id: tenants.id });
+			if (updated.length === 0) {
+				logger.warn(`Activation refused for tenant ${tenantId} in state ${tenant.status}`);
 				return { success: false, message: "Invalid request state" };
 			}
 
-			await db
-				.update(tenants)
-				.set({ status: "ACTIVE" })
-				.where(eq(tenants.id, tenantId));
-
+			logger.success(`Tenant activated: ${tenantId}`);
 			return { success: true };
 		},
 		{
@@ -119,60 +53,48 @@ const authModule = new Elysia({ prefix: "/api/v1/auth" })
 	.post(
 		"/admin/login",
 		async ({ jwtTenant, body, cookie: { admin_token } }) => {
-			console.log("Login attempt for:", body.email);
-			const result = await db
-				.select()
-				.from(tenants)
-				.where(eq(tenants.email, body.email));
+			const tenant = await db.query.tenants.findFirst({
+				where: eq(tenants.email, body.email),
+			});
 
-			if (result.length === 0)
+			// Verify the password before revealing account state
+			const isMatch =
+				!!tenant && (await Bun.password.verify(body.password, tenant.password));
+			if (!tenant || !isMatch) {
+				logger.warn(`Failed tenant login for ${maskEmail(body.email)}`);
 				return { success: false, message: "Invalid credentials" };
-
-			const tenant = result[0];
+			}
 
 			if (tenant.status !== "ACTIVE") {
+				logger.warn(`Login blocked for tenant ${tenant.id}: status ${tenant.status}`);
 				return {
 					success: false,
 					message:
-						"Account not active. Please check your email for the activation link.",
+						tenant.status === "AWAITING_ACTIVATION"
+							? "Account not active. Please check your email for the activation link."
+							: "Account is pending review or was not approved.",
 				};
 			}
-
-			const isMatch = await Bun.password.verify(body.password, tenant.password);
-			if (!isMatch) return { success: false, message: "Invalid credentials" };
 
 			const token = await jwtTenant.sign({
 				tenantId: tenant.id,
 				email: tenant.email,
 			});
 			admin_token.set({
+				...cookieOptions,
 				value: token,
-				httpOnly: true,
-				secure: process.env.NODE_ENV === "production",
-				sameSite: "lax",
-				path: "/",
-				maxAge: 7 * 24 * 60 * 60, // 7 days
+				maxAge: TENANT_SESSION_SECONDS,
 			});
 
-			return {
-				success: true,
-				// tenant: { id: tenant.id, name: tenant.name, email: tenant.email },
-				message: "Login successful",
-			};
+			logger.info(`Tenant logged in: ${tenant.id}`);
+			return { success: true, message: "Login successful" };
 		},
 		{
 			body: t.Object({ email: t.String(), password: t.String() }),
 		},
 	)
-	.post("/admin/logout", async ({ cookie: { admin_token } }) => {
-		admin_token.set({
-			value: "",
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
-			path: "/",
-			maxAge: 0, // Expire immediately
-		});
+	.post("/admin/logout", ({ cookie: { admin_token } }) => {
+		admin_token.set({ ...cookieOptions, value: "", maxAge: 0 });
 		return { success: true };
 	})
 	.get(
@@ -180,30 +102,25 @@ const authModule = new Elysia({ prefix: "/api/v1/auth" })
 		async ({ user }) => {
 			const tenant = await db.query.tenants.findFirst({
 				where: eq(tenants.id, user.tenantId),
+				columns: { id: true, name: true, email: true },
 			});
-			if (!tenant) return { user: null };
-
-			return { user: { id: tenant.id, name: tenant.name } };
+			return { user: tenant ?? null };
 		},
 		{ adminAuth: true },
 	)
 	.post(
 		"/super/login",
 		async ({ jwtSuper, body, cookie: { super_token } }) => {
-			const result = await db
-				.select()
-				.from(superAdmins)
-				.where(eq(superAdmins.username, body.username));
+			const admin = await db.query.superAdmins.findFirst({
+				where: eq(superAdmins.username, body.username),
+			});
 
-			if (result.length === 0) {
-				return { success: false, message: "Unknown entity" };
-			}
-
-			const admin = result[0];
-
-			const isMatch = await Bun.password.verify(body.password, admin.password);
-			if (!isMatch) {
-				return { success: false, message: "Incorrect word" };
+			// Same response for unknown user and wrong password (no user enumeration)
+			const isMatch =
+				!!admin && (await Bun.password.verify(body.password, admin.password));
+			if (!admin || !isMatch) {
+				logger.warn(`Failed superadmin login for username "${body.username}"`);
+				return { success: false, message: "The void does not answer" };
 			}
 
 			const token = await jwtSuper.sign({
@@ -211,35 +128,33 @@ const authModule = new Elysia({ prefix: "/api/v1/auth" })
 				role: "superadmin",
 			});
 			super_token.set({
+				...cookieOptions,
 				value: token,
-				httpOnly: true,
-				secure: process.env.NODE_ENV === "production",
-				sameSite: "lax",
-				path: "/",
-				maxAge: 1 * 60 * 60, // 1 hour
+				maxAge: SUPER_SESSION_SECONDS,
 			});
 
+			logger.info(`Superadmin logged in: ${admin.username}`);
 			return { success: true };
 		},
 		{
 			body: t.Object({ username: t.String(), password: t.String() }),
 		},
 	)
-	.post("/super/logout", async ({ cookie: { super_token } }) => {
-		super_token.set({
-			value: "",
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "lax",
-			path: "/",
-			maxAge: 0, // Expire immediately
-		});
+	.post("/super/logout", ({ cookie: { super_token } }) => {
+		super_token.set({ ...cookieOptions, value: "", maxAge: 0 });
 		return { success: true };
 	})
 	.get(
 		"/super/me",
-		async ({ user }) => {
-			return { success: true, user };
+		async ({ user, status }) => {
+			// Never return the password hash
+			const superadmin = await db.query.superAdmins.findFirst({
+				where: eq(superAdmins.id, user.id),
+				columns: { id: true, username: true },
+			});
+			if (!superadmin) return status(401, "Unknown superadmin");
+
+			return { success: true, user: superadmin };
 		},
 		{ superAuth: true },
 	);

@@ -3,15 +3,17 @@ import { eq } from "drizzle-orm";
 
 import { db } from "../db";
 import { tenants } from "../db/schema";
+import { logger, maskEmail } from "../logger";
 
 const registrationModule = new Elysia().post(
 	"/api/v1/register",
 	async ({ body }) => {
-		const existing = await db
-			.select()
-			.from(tenants)
-			.where(eq(tenants.email, body.email));
-		if (existing.length > 0) {
+		const existing = await db.query.tenants.findFirst({
+			where: eq(tenants.email, body.email),
+			columns: { id: true },
+		});
+		if (existing) {
+			logger.warn(`Registration refused, email already registered: ${maskEmail(body.email)}`);
 			return { success: false, message: "Email already registered" };
 		}
 
@@ -24,6 +26,7 @@ const registrationModule = new Elysia().post(
 			status: "PENDING",
 		});
 
+		logger.info(`New tenant registration pending review: ${maskEmail(body.email)}`);
 		return {
 			success: true,
 			message: "Registration submitted for review",
@@ -31,9 +34,9 @@ const registrationModule = new Elysia().post(
 	},
 	{
 		body: t.Object({
-			tenantName: t.String(),
-			email: t.String(),
-			password: t.String(),
+			tenantName: t.String({ minLength: 1, maxLength: 200 }),
+			email: t.String({ format: "email", maxLength: 254 }),
+			password: t.String({ minLength: 8, maxLength: 128 }),
 		}),
 	},
 );

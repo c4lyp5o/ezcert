@@ -17,25 +17,37 @@
 		"db:push": "drizzle-kit push",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio"
+		"db:studio": "drizzle-kit studio",
+		"db:seed-super": "bun --env-file .env tests/seed-super.ts",
+		"db:encrypt-pii": "bun --env-file .env scripts/encrypt-attendees.ts",
+		"test": "bun test --preload ./tests/setup.ts ./tests",
+		"test:watch": "bun test --preload ./tests/setup.ts --watch ./tests",
+		"typecheck": "bunx -p typescript@5.9.3 tsc --noEmit -p . && cd client && bun run check"
 	},
 	"dependencies": {
-		"@elysiajs/cors": "^1.4.0",
-		"@elysiajs/jwt": "^1.4.0",
-		"drizzle-orm": "^0.45.1",
-		"elysia": "latest",
-		"nodemailer": "^7.0.11",
+		"@elysiajs/cors": "^1.4.2",
+		"@elysiajs/jwt": "^1.4.2",
+		"deadslog": "^2.0.0",
+		"drizzle-orm": "^0.45.4",
+		"elysia": "^1.4.30",
+		"fast-xml-parser": "^5.11.2",
+		"fflate": "^0.8.3",
+		"nodemailer": "^7.0.13",
 		"pdfkit": "^0.17.2",
-		"pg": "^8.16.3"
+		"pg": "^8.23.1",
+		"pptxgenjs": "^4.0.1",
+		"qr": "^0.7.2",
+		"sharp": "^0.35.5"
 	},
 	"devDependencies": {
-		"@types/nodemailer": "^7.0.4",
-		"@types/pdfkit": "^0.17.4",
-		"@types/pg": "^8.16.0",
-		"bun-types": "latest",
-		"concurrently": "^9.2.1",
-		"drizzle-kit": "^0.31.8",
-		"tsx": "^4.21.0"
+		"@electric-sql/pglite": "^0.5.11",
+		"@types/nodemailer": "^7.0.12",
+		"@types/pdfkit": "^0.17.7",
+		"@types/pg": "^8.23.1",
+		"bun-types": "~1.3.14",
+		"concurrently": "^9.2.5",
+		"drizzle-kit": "^0.31.11",
+		"tsx": "^4.23.15"
 	},
 	"module": "src/index.js"
 }

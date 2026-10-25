@@ -56,3 +56,35 @@ jobs:
 
       - name: Build client
         run: bun run build:all
+
+  # Builds the production image and checks the native bits load on Alpine (musl)
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ezcert:ci .
+
+      - name: Image has the built client, uploads dir and native modules
+        run: |
+          docker run --rm --entrypoint sh ezcert:ci -c '
+            test -f dist/index.html && test -f dist/favicon.ico && test -d /app/uploads &&
+            bun -e "const s = (await import(\"sharp\")).default; const b = await s({ create: { width: 8, height: 8, channels: 3, background: \"#fff\" } }).png().toBuffer(); if (!b.length) process.exit(1); await import(\"pdfkit\"); await import(\"nodemailer\"); console.log(\"sharp + pdfkit + nodemailer OK\")" &&
+            ! test -e .env &&
+            echo "no .env in image"
+          '
+
+      # Boots the server against an unreachable database, only to prove it starts, validates
+      # its env (encryption key) and answers HTTP; real DB behaviour is covered by the tests.
+      - name: Container starts and answers HTTP
+        run: |
+          docker run -d --name ezcert-smoke -p 5000:5000             -e NODE_ENV=development             -e DATA_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)"             -e POSTGRES_URL=postgres://u:p@127.0.0.1:5432/none             ezcert:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/v1/events/00000000-0000-4000-8000-000000000000 || true)
+            [ "$code" != "000" ] && echo "HTTP $code" && exit 0
+            sleep 2
+          done
+          docker logs ezcert-smoke
+          exit 1

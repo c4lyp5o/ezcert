@@ -213,7 +213,7 @@ bun run start         # pm2-runtime with ecosystem.config.js
 
 > **Uploads:** mount `UPLOAD_DIR` (default `/app/uploads` in the container) as a persistent volume, e.g. `-v ezcert-uploads:/app/uploads`. Otherwise uploaded logos and backgrounds are lost when the container is replaced.
 
-> **Note:** the Dockerfile currently copies `.env` into the image. Prefer injecting environment variables at runtime (`docker run --env-file .env …`) so secrets are not baked into image layers. PM2 cluster mode is unreliable with the Bun interpreter; use `exec_mode: "fork"` if you see issues.
+> **Secrets:** the image contains no `.env`. Pass configuration at run time: `docker run --env-file .env -p 5000:5000 -v ezcert-uploads:/app/uploads ezcert`. PM2 runs a single process in fork mode (cluster mode is unreliable with Bun, and the rate limiter is per process). CI builds the image and checks that it starts.
 
 ## License
 

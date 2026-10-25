@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+# A newer push to the same branch/PR cancels the older run
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keep the Bun version in step with bun-types in package.json (~1.3.x)
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      # SvelteKit 3 / Vite 8 need Node 22.17+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install server dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install client dependencies
+        run: bun install --frozen-lockfile
+        working-directory: client
+
+      # Uses an in-memory Postgres (PGlite) and a throwaway encryption key; no database needed.
+      # Also writes coverage/lcov.info for Codecov.
+      - name: Test (with coverage)
+        run: bun run test:coverage
+
+      # The org doesn't require upload tokens. A Codecov outage never fails CI.
+      - name: Upload server coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/lcov.info
+          flags: server
+          fail_ci_if_error: false
+
+      # Client logic (src/lib and the page load functions); Svelte components aren't covered yet
+      - name: Client tests (with coverage)
+        run: bun run test:coverage
+        working-directory: client
+
+      - name: Upload client coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: client/coverage/lcov.info
+          flags: client
+          fail_ci_if_error: false
+
+      - name: Type-check (server + client)
+        run: bun run typecheck
+
+      - name: Build client
+        run: bun run build:all
+
+  # Builds the production image and checks the native bits load on Alpine (musl)
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Throwaway database for the container smoke test below
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ezcert:ci .
+
+      - name: Image has the built client, uploads dir and native modules
+        run: |
+          docker run --rm --entrypoint sh ezcert:ci -c '
+            test -f dist/index.html && test -f dist/favicon.ico && test -d /app/uploads &&
+            bun -e "const s = (await import(\"sharp\")).default; const b = await s({ create: { width: 8, height: 8, channels: 3, background: \"#fff\" } }).png().toBuffer(); if (!b.length) process.exit(1); await import(\"pdfkit\"); await import(\"nodemailer\"); console.log(\"sharp + pdfkit + nodemailer OK\")" &&
+            ! test -e .env &&
+            echo "no .env in image"
+          '
+
+      # The image runs in production mode (pm2 --env production), which refuses to start without
+      # secrets and a database TLS policy, so give it a production-style environment. The CI Postgres
+      # has no TLS and no tables; we only need the server to boot and answer HTTP (the test suite
+      # covers real database behaviour).
+      - name: Container starts and answers HTTP
+        run: |
+          docker run -d --name ezcert-smoke --network host             -e JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e SUPER_JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e MAGIC_JWT_SECRET="$(head -c 24 /dev/urandom | base64)"             -e DATA_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64)"             -e POSTGRES_URL=postgres://postgres:ci-only@127.0.0.1:5432/postgres             -e DB_ALLOW_INSECURE=true             ezcert:ci
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5000/api/v1/events/00000000-0000-4000-8000-000000000000 || true)
+            [ "$code" != "000" ] && echo "HTTP $code" && exit 0
+            sleep 2
+          done
+          docker logs ezcert-smoke
+          exit 1

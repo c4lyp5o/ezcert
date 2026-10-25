@@ -1,5 +1,5 @@
 import type { PageLoad } from "./$types";
-import { superSession, initSuperSession } from "$lib/superAuth.svelte";
+import { superSession, initSuperSession } from "#lib/superAuth.svelte.js";
 import { redirect } from "@sveltejs/kit";
 
 export const ssr = false;

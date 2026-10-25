@@ -338,6 +338,14 @@ describe("database TLS policy", () => {
 		expect(resolveSsl({ NODE_ENV: "production", POSTGRES_URL: "postgres://h/db?sslmode=disable" }).error).toBeDefined();
 	});
 
+	test("DB_ALLOW_INSECURE=true alone opts a production deployment out of TLS; an explicit DB_SSL still wins", () => {
+		const base = { NODE_ENV: "production", POSTGRES_URL: "postgres://h/db" };
+		expect(resolveSsl({ ...base, DB_ALLOW_INSECURE: "true" })).toMatchObject({ ssl: false, encrypted: false });
+		expect(resolveSsl({ ...base, DB_ALLOW_INSECURE: "true", DB_SSL: "verify" })).toMatchObject({ encrypted: true });
+		// Without the opt-out, production still defaults to verified TLS
+		expect(resolveSsl(base)).toMatchObject({ ssl: { rejectUnauthorized: true }, encrypted: true });
+	});
+
 	test("development warns about plaintext; sslmode in the URL is respected", () => {
 		expect(resolveSsl({ NODE_ENV: "development", POSTGRES_URL: "postgres://h/db" }).warning).toContain("NOT encrypted");
 		expect(resolveSsl({ POSTGRES_URL: "postgres://h/db?sslmode=require" })).toMatchObject({ encrypted: true });

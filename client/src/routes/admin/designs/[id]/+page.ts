@@ -1,7 +1,7 @@
 import type { PageLoad } from "./$types";
 import { error, redirect } from "@sveltejs/kit";
-import { session, initSession } from "$lib/auth.svelte";
-import type { Asset, Layout } from "$lib/designs.svelte";
+import { session, initSession } from "#lib/auth.svelte.js";
+import type { Asset, Layout } from "#lib/designs.svelte.js";
 
 export const load: PageLoad = async ({ params, fetch }) => {
   await initSession();

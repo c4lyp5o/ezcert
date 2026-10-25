@@ -1,8 +1,8 @@
 <script lang="ts">
-  import favicon from "$lib/assets/favicon.svg";
+  import favicon from "#lib/assets/favicon.svg";
   import { page } from "$app/state";
   import { Sun, Moon } from "lucide-svelte";
-  import { initialTheme, saveTheme, type Theme } from "$lib/theme";
+  import { initialTheme, saveTheme, type Theme } from "#lib/theme.js";
   import "../app.css";
 
   let { children } = $props();
@@ -26,6 +26,7 @@
 <svelte:head>
   <title>EZCERT</title>
   <link rel="icon" href={favicon} />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta
     name="description"
     content="Easy event attendance with cert generation"

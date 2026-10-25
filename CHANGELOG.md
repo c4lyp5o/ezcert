@@ -5,6 +5,38 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added: client tests and an EzCert icon
+- Client unit tests with Vitest (`bun run test:client`, 51 tests): design helpers, theme persistence, tenant and superadmin sessions, and every page `load` function (auth redirects, 404/500 mapping, fallbacks when the API fails). A parity test fails if the client's placeholders, fonts, sample values or page sizes drift from the server's `src/designs/layout.ts`. Svelte components are not covered yet.
+- CI runs the client tests and uploads client coverage to Codecov (flag `client`) next to the server's (flag `server`). The `token` input was dropped: the Codecov org no longer requires upload tokens.
+- New EzCert favicon (white check on the brand blue), `favicon.ico` and an `apple-touch-icon.png`, replacing the template's Svelte logo.
+
+### Fixed: Docker and cleanups
+- **Dockerfile no longer copies `.env`.** `.env` is untracked, so image builds from a clean clone failed, and copying it baked secrets into the image. Pass them at run time with `--env-file`. The build also uses frozen lockfiles, sets `UPLOAD_DIR` with a volume, and adds a healthcheck. `.dockerignore` excludes `.env`, `.git`, tests and nested `node_modules`.
+- **The container could never start.** `ecosystem.config.js` pointed PM2 at `src/index.js`, which doesn't exist (the file is `index.ts`), and the startup chain used top-level `await` (`await client.connect()` in `src/db/index.ts`), which PM2's Bun wrapper can't `require()`. The database now uses a `pg` pool and startup waits on a `dbReady` promise. A regression test (`tests/pm2-load.test.ts`) loads the entry the way PM2 does. Found by the new CI smoke test; the approach comes from the `eziarr` project.
+- `DB_ALLOW_INSECURE=true` alone now opts a production deployment out of database TLS, as `.env.example` always implied (before, it also needed `DB_SSL=disable`, and otherwise the app still demanded TLS). An explicit `DB_SSL` still takes precedence; production without either still defaults to verified TLS.
+- PM2 now runs one process in fork mode instead of cluster mode (unreliable with Bun; the in-memory rate limiter is per process).
+- Added `favicon.ico` (removes the `/favicon.ico` 404).
+- Removed a no-op QR recolour in the dashboard; the check-in QR stays black.
+
+### Added: continuous integration
+- GitHub Actions workflow (`.github/workflows/ci.yml`): on every push and PR to `main` and `development` it installs with frozen lockfiles and runs `bun run test`, `bun run typecheck` and `bun run build:all` (Bun 1.3.14, Node 24, no secrets).
+- Coverage: `bun run test:coverage` writes `coverage/lcov.info`; CI uploads it to Codecov (`codecov.yml`). The report counts server code only (tests are excluded via `bunfig.toml`).
+- MIT `LICENSE`, and a README license section and badge.
+- CI also builds the Docker image, checks that `sharp`, `pdfkit` and `nodemailer` load on Alpine, and boots the container.
+- README badges: CI, Codecov, license, last commit, Bun, SvelteKit, TypeScript, Dependabot.
+- Dependabot (`.github/dependabot.yml`): weekly updates for the server, the client and the workflow actions, with minor/patch grouped. `bun-types` and the client's TypeScript major are held back deliberately.
+- Docs: README (stack, layout, API table, test table, CI section), CONTRIBUTING (branching from `development`, SvelteKit 3 and theme conventions), VERSION release steps and AGENTS brought up to date.
+
+### Changed: major dependency upgrades
+- Server: `nodemailer` 7 → 10, `pdfkit` 0.17 → 0.20, `@types/nodemailer` 7 → 8, `concurrently` 9 → 10 (dev). Client: `lucide-svelte` 0.561 → 1.0, `qr` 0.5 → 0.7.
+- Certificates are unchanged: the PDF drawing instructions of all four built-in templates and the landscape/portrait custom designs are identical before and after. QR codes (SVG and matrix) and email messages are identical too. The PDFs only gain a `/UserUnit 1` entry (the default page unit).
+- Held back on purpose: `bun-types` 1.4 (must match the installed Bun) and TypeScript 7 (the native build crashes under `bunx`, and SvelteKit 3 wants 6).
+
+### Changed: SvelteKit 3
+- Client upgraded to SvelteKit 3, Vite 8, `@sveltejs/vite-plugin-svelte` 7, `@sveltejs/adapter-static` 4 and TypeScript 6, using `sv migrate sveltekit-3`. Needs Node 22.17+ for the client tooling.
+- `svelte.config.js` is gone; its options moved into `sveltekit()` in `client/vite.config.ts`. `$lib` imports became `#lib` subpath imports, and `client/tsconfig.json` extends `$app/tsconfig`.
+- No user-facing or API change.
+
 ### Added: light/dark theme toggle
 - Organiser and attendee pages (landing, login, register, dashboard, designer, check-in, verify) have a light/dark toggle (bottom-right). It defaults to the OS preference and is remembered per browser (`localStorage` key `ezcert-theme`), and is applied before first paint so there is no flash.
 - Superadmin pages (`/acolyte`) are unchanged.

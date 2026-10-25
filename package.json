@@ -1,6 +1,7 @@
 {
 	"name": "ezcert",
 	"version": "1.0.0",
+	"license": "MIT",
 	"scripts": {
 		"install:client": "cd client && bun install",
 		"install:server": "bun install",
@@ -21,6 +22,8 @@
 		"db:seed-super": "bun --env-file .env tests/seed-super.ts",
 		"db:encrypt-pii": "bun --env-file .env scripts/encrypt-attendees.ts",
 		"test": "bun test --preload ./tests/setup.ts ./tests",
+		"test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --preload ./tests/setup.ts ./tests",
+		"test:client": "cd client && bun run test",
 		"test:watch": "bun test --preload ./tests/setup.ts --watch ./tests",
 		"typecheck": "bunx -p typescript@5.9.3 tsc --noEmit -p . && cd client && bun run check"
 	},
@@ -32,8 +35,8 @@
 		"elysia": "^1.4.30",
 		"fast-xml-parser": "^5.11.2",
 		"fflate": "^0.8.3",
-		"nodemailer": "^7.0.13",
-		"pdfkit": "^0.17.2",
+		"nodemailer": "^10.2.1",
+		"pdfkit": "^0.20.2",
 		"pg": "^8.23.1",
 		"pptxgenjs": "^4.0.1",
 		"qr": "^0.7.2",
@@ -41,11 +44,11 @@
 	},
 	"devDependencies": {
 		"@electric-sql/pglite": "^0.5.11",
-		"@types/nodemailer": "^7.0.12",
+		"@types/nodemailer": "^8.0.2",
 		"@types/pdfkit": "^0.17.7",
 		"@types/pg": "^8.23.1",
 		"bun-types": "~1.3.14",
-		"concurrently": "^9.2.5",
+		"concurrently": "^10.0.6",
 		"drizzle-kit": "^0.31.11",
 		"tsx": "^4.23.15"
 	},

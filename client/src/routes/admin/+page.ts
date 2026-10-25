@@ -1,5 +1,5 @@
 import type { PageLoad } from "./$types";
-import { session, initSession } from "$lib/auth.svelte";
+import { session, initSession } from "#lib/auth.svelte.js";
 import { redirect } from "@sveltejs/kit";
 
 export const ssr = false;

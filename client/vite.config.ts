@@ -1,5 +1,7 @@
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
@@ -13,5 +15,24 @@ export default defineConfig({
 			},
 		},
 	},
-	plugins: [sveltekit(), tailwindcss()],
+	test: {
+		include: ["src/**/*.test.ts"],
+		environment: "jsdom",
+		coverage: {
+			provider: "v8",
+			include: ["src/lib/**/*.ts", "src/routes/**/+page.ts"],
+			reporter: ["text", "lcov"],
+		},
+	},
+	plugins: [
+		sveltekit({
+			// Consult https://svelte.dev/docs/kit/integrations
+			// for more information about preprocessors
+			preprocess: vitePreprocess(),
+
+			// SPA mode: output to ../dist (where the Dockerfile expects it); fallback serves dynamic routes like /event/[id]
+			adapter: adapter({ pages: '../dist', assets: '../dist', fallback: 'index.html' })
+		}),
+		tailwindcss()
+	]
 });

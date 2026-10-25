@@ -3,7 +3,7 @@
   import { getLocalTimeZone, today } from "@internationalized/date";
   import encodeQR from "qr";
 
-  import { session, logoutUser } from "$lib/auth.svelte";
+  import { session, logoutUser } from "#lib/auth.svelte.js";
 
   // The API never sends a full IC to the browser; icMasked is "******-**-1234"
   type Attendee = {
@@ -261,10 +261,7 @@
 
   function openQrModal(event: EventRow) {
     activeQrEvent = event;
-    activeQrSvg = encodeQR(eventLink(event), "svg").replace(
-      'fill="black"',
-      'fill="#2563eb"',
-    );
+    activeQrSvg = encodeQR(eventLink(event), "svg");
     showQrModal = true;
   }
 
@@ -304,9 +301,7 @@
     <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <div class="w-6 h-6 bg-blue-600 rounded-lg"></div>
-        <span class="font-bold text-white tracking-tight"
-          >EzCert <span class="text-zinc-500 font-normal">Business</span></span
-        >
+        <span class="font-bold text-white tracking-tight">EzCert</span>
       </div>
 
       <div class="flex items-center gap-6">

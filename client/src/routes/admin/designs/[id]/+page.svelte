@@ -18,7 +18,7 @@
     type Orientation,
     type DesignElement,
     type Layout,
-  } from "$lib/designs.svelte";
+  } from "#lib/designs.svelte.js";
 
   let { data } = $props();
 
@@ -249,7 +249,7 @@
       message = { kind: "ok", text: "Design saved" };
       if (!designId) {
         designId = saved.id;
-        await goto(`/admin/designs/${saved.id}`, { replaceState: true, noScroll: true });
+        await goto(`/admin/designs/${saved.id}`, { replace: true, reset: false });
       }
     } finally {
       saving = false;

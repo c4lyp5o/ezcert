@@ -45,7 +45,7 @@ jobs:
 
       # The org doesn't require upload tokens. A Codecov outage never fails CI.
       - name: Upload server coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: coverage/lcov.info
           flags: server
@@ -57,7 +57,7 @@ jobs:
         working-directory: client
 
       - name: Upload client coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           files: client/coverage/lcov.info
           flags: client

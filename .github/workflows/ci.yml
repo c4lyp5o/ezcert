@@ -43,12 +43,24 @@ jobs:
       - name: Test (with coverage)
         run: bun run test:coverage
 
-      # Needs the CODECOV_TOKEN repository secret. A missing token or a Codecov outage never fails CI.
-      - name: Upload coverage to Codecov
+      # The org doesn't require upload tokens. A Codecov outage never fails CI.
+      - name: Upload server coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
+          flags: server
+          fail_ci_if_error: false
+
+      # Client logic (src/lib and the page load functions); Svelte components aren't covered yet
+      - name: Client tests (with coverage)
+        run: bun run test:coverage
+        working-directory: client
+
+      - name: Upload client coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: client/coverage/lcov.info
+          flags: client
           fail_ci_if_error: false
 
       - name: Type-check (server + client)

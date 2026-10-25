@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added: client tests and an EzCert icon
+- Client unit tests with Vitest (`bun run test:client`, 51 tests): design helpers, theme persistence, tenant and superadmin sessions, and every page `load` function (auth redirects, 404/500 mapping, fallbacks when the API fails). A parity test fails if the client's placeholders, fonts, sample values or page sizes drift from the server's `src/designs/layout.ts`. Svelte components are not covered yet.
+- CI runs the client tests and uploads client coverage to Codecov (flag `client`) next to the server's (flag `server`). The `token` input was dropped: the Codecov org no longer requires upload tokens.
+- New EzCert favicon (white check on the brand blue), `favicon.ico` and an `apple-touch-icon.png`, replacing the template's Svelte logo.
+
 ### Fixed: Docker and cleanups
 - **Dockerfile no longer copies `.env`.** `.env` is untracked, so image builds from a clean clone failed, and copying it baked secrets into the image. Pass them at run time with `--env-file`. The build also uses frozen lockfiles, sets `UPLOAD_DIR` with a volume, and adds a healthcheck. `.dockerignore` excludes `.env`, `.git`, tests and nested `node_modules`.
 - **The container could never start.** `ecosystem.config.js` pointed PM2 at `src/index.js`, which doesn't exist (the file is `index.ts`), and the startup chain used top-level `await` (`await client.connect()` in `src/db/index.ts`), which PM2's Bun wrapper can't `require()`. The database now uses a `pg` pool and startup waits on a `dbReady` promise. A regression test (`tests/pm2-load.test.ts`) loads the entry the way PM2 does. Found by the new CI smoke test; the approach comes from the `eziarr` project.

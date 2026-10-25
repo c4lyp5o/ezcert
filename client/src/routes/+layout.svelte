@@ -26,6 +26,7 @@
 <svelte:head>
   <title>EZCERT</title>
   <link rel="icon" href={favicon} />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <meta
     name="description"
     content="Easy event attendance with cert generation"

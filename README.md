@@ -24,7 +24,7 @@ Easy event attendance with certificate generation. Organisations (tenants) regis
 | Images   | [sharp](https://sharp.pixelplumbing.com) (upload sanitising), fflate + fast-xml-parser (PPTX import) |
 | Logging  | [deadslog](https://www.npmjs.com/package/deadslog)                   |
 | Client   | SvelteKit 3 (SPA, `adapter-static`) + Svelte 5 + Vite 8 + Tailwind 4 + bits-ui |
-| Tests    | `bun test` + in-memory Postgres ([PGlite](https://pglite.dev))       |
+| Tests    | `bun test` + in-memory Postgres ([PGlite](https://pglite.dev)); Vitest for the client |
 
 ## Project layout
 
@@ -173,6 +173,7 @@ Configure with `LOG_LEVEL` (default `info`; `silent` disables) and `LOG_FILE_PAT
 ```bash
 bun run test          # API + certificate tests
 bun run test:coverage # same, plus a coverage report (coverage/lcov.info)
+bun run test:client   # client unit tests (Vitest): design helpers, theme, sessions, page loads
 bun run test:watch
 bun run typecheck     # server tsc + client svelte-check
 ```
@@ -200,7 +201,7 @@ Requests go through `app.handle()`, so no port is opened.
 
 ### Continuous integration
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and `development`: install (frozen lockfiles), `bun run test:coverage`, `bun run typecheck` and `bun run build:all`, then uploads coverage to [Codecov](https://codecov.io/gh/c4lyp5o/ezcert). It needs no database. The upload uses the `CODECOV_TOKEN` repository secret and never fails the build. Bun is pinned to 1.3.14 to match `bun-types`. [Dependabot](.github/dependabot.yml) opens weekly update PRs (minor/patch grouped); majors are reviewed by hand.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and `development`: install (frozen lockfiles), `bun run test:coverage`, `bun run typecheck` and `bun run build:all`, plus the client tests (Vitest), then uploads server and client coverage to [Codecov](https://codecov.io/gh/c4lyp5o/ezcert) (no token needed; an upload problem never fails the build). It needs no database. Bun is pinned to 1.3.14 to match `bun-types`. [Dependabot](.github/dependabot.yml) opens weekly update PRs (minor/patch grouped); majors are reviewed by hand.
 
 ## Building & deployment
 

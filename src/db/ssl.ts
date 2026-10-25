@@ -13,7 +13,7 @@ const SSL_MODES = ["verify", "no-verify", "disable"] as const;
 
 /**
  * Decides how the app connects to Postgres.
- *   DB_SSL=verify     TLS with certificate verification (default in production)
+ *   DB_SSL=verify     TLS with certificate verification (default in production, unless DB_ALLOW_INSECURE=true)
  *   DB_SSL=no-verify  TLS without verification (self-signed certs; still encrypts traffic)
  *   DB_SSL=disable    no TLS; refused in production unless DB_ALLOW_INSECURE=true
  * An `sslmode` in POSTGRES_URL takes precedence (the pg driver applies it).
@@ -29,7 +29,9 @@ export function resolveSsl(env: Env): SslDecision {
 			: { ssl: undefined, encrypted };
 	}
 
-	const mode = (env.DB_SSL ?? (production ? "verify" : "disable")).toLowerCase();
+	// Production defaults to verified TLS; DB_ALLOW_INSECURE=true alone is the explicit opt-out
+	const defaultMode = production && env.DB_ALLOW_INSECURE !== "true" ? "verify" : "disable";
+	const mode = (env.DB_SSL ?? defaultMode).toLowerCase();
 	if (!(SSL_MODES as readonly string[]).includes(mode)) {
 		return { ssl: false, encrypted: false, error: `DB_SSL must be one of ${SSL_MODES.join(", ")}` };
 	}

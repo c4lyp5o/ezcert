@@ -1,10 +1,13 @@
 // server/src/index.ts
 import { app } from "./app";
 import { assertEncryptionConfigured } from "./crypto/pii";
+import { dbReady } from "./db";
 import { logger } from "./logger";
 
-// Without the key, participant data can't be stored or read; fail at boot, not at first check-in.
-// No top-level await in this file: PM2's Bun wrapper loads it with require(), which rejects async modules.
+// No top-level await in this file or the modules it imports: PM2's Bun wrapper loads the entry
+// with require(), which rejects an async module (see tests/pm2-load.test.ts).
+
+// Without the key, participant data can't be stored or read; fail at boot, not at first check-in
 function encryptionReady(): boolean {
 	try {
 		assertEncryptionConfigured();
@@ -16,7 +19,7 @@ function encryptionReady(): boolean {
 	}
 }
 
-if (encryptionReady()) {
+function start() {
 	const PORT = process.env.PORT || 5000;
 
 	process.on("unhandledRejection", (reason) =>
@@ -32,3 +35,6 @@ if (encryptionReady()) {
 		`🦊 Backend running at ${app.server?.url} (${process.env.NODE_ENV ?? "development"})`,
 	);
 }
+
+// Only start serving once the database answers
+if (encryptionReady()) void dbReady.then(start);

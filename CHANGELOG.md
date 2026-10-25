@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed: dashboard actions
+- "Copy", "CSV" and "Delete" in the actions column are now icons (copy, spreadsheet, trash) with tooltips and accessible labels. The CSV icon is dimmed, with an explanatory tooltip, when an event has no attendees.
+
 ### Added: client tests and an EzCert icon
 - Client unit tests with Vitest (`bun run test:client`, 51 tests): design helpers, theme persistence, tenant and superadmin sessions, and every page `load` function (auth redirects, 404/500 mapping, fallbacks when the API fails). A parity test fails if the client's placeholders, fonts, sample values or page sizes drift from the server's `src/designs/layout.ts`. Svelte components are not covered yet.
 - CI runs the client tests and uploads client coverage to Codecov (flag `client`) next to the server's (flag `server`). The `token` input was dropped: the Codecov org no longer requires upload tokens.

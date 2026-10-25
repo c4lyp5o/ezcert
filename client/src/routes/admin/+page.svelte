@@ -304,9 +304,7 @@
     <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <div class="w-6 h-6 bg-blue-600 rounded-lg"></div>
-        <span class="font-bold text-white tracking-tight"
-          >EzCert <span class="text-zinc-500 font-normal">Business</span></span
-        >
+        <span class="font-bold text-white tracking-tight">EzCert</span>
       </div>
 
       <div class="flex items-center gap-6">

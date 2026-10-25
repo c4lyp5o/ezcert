@@ -7,6 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ### Fixed: Docker and cleanups
 - **Dockerfile no longer copies `.env`.** `.env` is untracked, so image builds from a clean clone failed, and copying it baked secrets into the image. Pass them at run time with `--env-file`. The build also uses frozen lockfiles, sets `UPLOAD_DIR` with a volume, and adds a healthcheck. `.dockerignore` excludes `.env`, `.git`, tests and nested `node_modules`.
+- **The container could never start:** `ecosystem.config.js` pointed PM2 at `src/index.js`, which doesn't exist (the file is `index.ts`). Found by the new CI smoke test.
 - PM2 now runs one process in fork mode instead of cluster mode (unreliable with Bun; the in-memory rate limiter is per process).
 - Added `favicon.ico` (removes the `/favicon.ico` 404).
 - Removed a no-op QR recolour in the dashboard; the check-in QR stays black.

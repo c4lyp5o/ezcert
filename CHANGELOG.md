@@ -8,7 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added: continuous integration
 - GitHub Actions workflow (`.github/workflows/ci.yml`): on every push and PR to `main` and `development` it installs with frozen lockfiles and runs `bun run test`, `bun run typecheck` and `bun run build:all` (Bun 1.3.14, Node 24, no secrets).
 - Coverage: `bun run test:coverage` writes `coverage/lcov.info`; CI uploads it to Codecov (`codecov.yml`). The report counts server code only (tests are excluded via `bunfig.toml`).
-- README badges: CI, Codecov, last commit, Bun, SvelteKit, TypeScript, Dependabot.
+- MIT `LICENSE`, and a README license section and badge.
+- README badges: CI, Codecov, license, last commit, Bun, SvelteKit, TypeScript, Dependabot.
 - Dependabot (`.github/dependabot.yml`): weekly updates for the server, the client and the workflow actions, with minor/patch grouped. `bun-types` and the client's TypeScript major are held back deliberately.
 - Docs: README (stack, layout, API table, test table, CI section), CONTRIBUTING (branching from `development`, SvelteKit 3 and theme conventions), VERSION release steps and AGENTS brought up to date.
 

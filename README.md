@@ -4,6 +4,7 @@ Easy event attendance with certificate generation. Organisations (tenants) regis
 
 [![CI](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml/badge.svg)](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/c4lyp5o/ezcert/graph/badge.svg)](https://codecov.io/gh/c4lyp5o/ezcert)
+[![License: MIT](https://img.shields.io/github/license/c4lyp5o/ezcert)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/c4lyp5o/ezcert/main)](https://github.com/c4lyp5o/ezcert/commits/main)
 [![Bun](https://img.shields.io/badge/Bun-1.3-000000?logo=bun&logoColor=white)](https://bun.sh)
 [![SvelteKit](https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev/docs/kit)
@@ -213,3 +214,7 @@ bun run start         # pm2-runtime with ecosystem.config.js
 > **Uploads:** mount `UPLOAD_DIR` (default `/app/uploads` in the container) as a persistent volume, e.g. `-v ezcert-uploads:/app/uploads`. Otherwise uploaded logos and backgrounds are lost when the container is replaced.
 
 > **Note:** the Dockerfile currently copies `.env` into the image. Prefer injecting environment variables at runtime (`docker run --env-file .env …`) so secrets are not baked into image layers. PM2 cluster mode is unreliable with the Bun interpreter; use `exec_mode: "fork"` if you see issues.
+
+## License
+
+[MIT](LICENSE) © 2026 c4lyp5o.

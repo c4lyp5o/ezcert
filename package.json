@@ -1,6 +1,7 @@
 {
 	"name": "ezcert",
 	"version": "1.0.0",
+	"license": "MIT",
 	"scripts": {
 		"install:client": "cd client && bun install",
 		"install:server": "bun install",

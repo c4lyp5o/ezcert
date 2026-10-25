@@ -3,6 +3,12 @@
 Easy event attendance with certificate generation. Organisations (tenants) register, are approved by a superadmin, create events, and share a QR code. Attendees check in on their phone and download a PDF certificate immediately.
 
 [![CI](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml/badge.svg)](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/c4lyp5o/ezcert/graph/badge.svg)](https://codecov.io/gh/c4lyp5o/ezcert)
+[![Last commit](https://img.shields.io/github/last-commit/c4lyp5o/ezcert/main)](https://github.com/c4lyp5o/ezcert/commits/main)
+[![Bun](https://img.shields.io/badge/Bun-1.3-000000?logo=bun&logoColor=white)](https://bun.sh)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev/docs/kit)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5%20%7C%206-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?logo=dependabot&logoColor=white)](.github/dependabot.yml)
 
 [Changelog](CHANGELOG.md) · [Versioning](VERSION.md) · [Contributing](CONTRIBUTING.md) · [Agent guide](AGENTS.md)
 
@@ -165,6 +171,7 @@ Configure with `LOG_LEVEL` (default `info`; `silent` disables) and `LOG_FILE_PAT
 
 ```bash
 bun run test          # API + certificate tests
+bun run test:coverage # same, plus a coverage report (coverage/lcov.info)
 bun run test:watch
 bun run typecheck     # server tsc + client svelte-check
 ```
@@ -192,7 +199,7 @@ Requests go through `app.handle()`, so no port is opened.
 
 ### Continuous integration
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and `development`: install (frozen lockfiles), `bun run test`, `bun run typecheck` and `bun run build:all`. It needs no secrets or database. Bun is pinned to 1.3.14 to match `bun-types`. [Dependabot](.github/dependabot.yml) opens weekly update PRs (minor/patch grouped); majors are reviewed by hand.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and `development`: install (frozen lockfiles), `bun run test:coverage`, `bun run typecheck` and `bun run build:all`, then uploads coverage to [Codecov](https://codecov.io/gh/c4lyp5o/ezcert). It needs no database. The upload uses the `CODECOV_TOKEN` repository secret and never fails the build. Bun is pinned to 1.3.14 to match `bun-types`. [Dependabot](.github/dependabot.yml) opens weekly update PRs (minor/patch grouped); majors are reviewed by hand.
 
 ## Building & deployment
 

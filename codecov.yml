@@ -1,0 +1,13 @@
+# Server coverage only: the client has no automated tests yet, so it isn't counted.
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+    patch:
+      default:
+        target: 80%
+comment:
+  layout: "condensed_header, diff, files"
+  require_changes: true

@@ -8,6 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Fixed: Docker and cleanups
 - **Dockerfile no longer copies `.env`.** `.env` is untracked, so image builds from a clean clone failed, and copying it baked secrets into the image. Pass them at run time with `--env-file`. The build also uses frozen lockfiles, sets `UPLOAD_DIR` with a volume, and adds a healthcheck. `.dockerignore` excludes `.env`, `.git`, tests and nested `node_modules`.
 - **The container could never start.** `ecosystem.config.js` pointed PM2 at `src/index.js`, which doesn't exist (the file is `index.ts`), and the startup chain used top-level `await` (`await client.connect()` in `src/db/index.ts`), which PM2's Bun wrapper can't `require()`. The database now uses a `pg` pool and startup waits on a `dbReady` promise. A regression test (`tests/pm2-load.test.ts`) loads the entry the way PM2 does. Found by the new CI smoke test; the approach comes from the `eziarr` project.
+- `DB_ALLOW_INSECURE=true` alone now opts a production deployment out of database TLS, as `.env.example` always implied (before, it also needed `DB_SSL=disable`, and otherwise the app still demanded TLS). An explicit `DB_SSL` still takes precedence; production without either still defaults to verified TLS.
 - PM2 now runs one process in fork mode instead of cluster mode (unreliable with Bun; the in-memory rate limiter is per process).
 - Added `favicon.ico` (removes the `/favicon.ico` 404).
 - Removed a no-op QR recolour in the dashboard; the check-in QR stays black.

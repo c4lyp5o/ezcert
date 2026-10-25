@@ -23,7 +23,9 @@ function fakePostgres() {
 		hostname: "127.0.0.1",
 		port: 0,
 		socket: {
-			open: (socket) => (socket.data = { started: false }),
+			open(socket) {
+				socket.data = { started: false };
+			},
 			data(socket, chunk) {
 				if (!socket.data.started) {
 					socket.data.started = true; // StartupMessage -> AuthenticationOk + ReadyForQuery

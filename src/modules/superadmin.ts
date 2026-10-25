@@ -9,16 +9,13 @@ import { authPlugin } from "../plugins/auth";
 import { logger, maskEmail } from "../logger";
 
 const transporter = nodemailer.createTransport({
-	host: process.env.EMAIL_HOST || "***REMOVED***",
+	host: process.env.EMAIL_HOST,
 	port: process.env.EMAIL_PORT ? Number(process.env.EMAIL_PORT) : 587,
 	secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
 	auth: {
-		user: process.env.EMAIL_USER || "***REMOVED***",
+		user: process.env.EMAIL_USER,
 		// .env.example documents EMAIL_PASSWORD; EMAIL_PASS kept for backward compat
-		pass:
-			process.env.EMAIL_PASSWORD ||
-			process.env.EMAIL_PASS ||
-			"***REMOVED***",
+		pass: process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS,
 	},
 });
 

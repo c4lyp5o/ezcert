@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Changed: dashboard actions
+- "Copy", "CSV" and "Delete" in the actions column are now icons (copy, spreadsheet, trash) with tooltips and accessible labels. The CSV icon is dimmed, with an explanatory tooltip, when an event has no attendees.
+
 ### Changed: major dependency upgrades
 - Server: `nodemailer` 7 → 10, `pdfkit` 0.17 → 0.20, `@types/nodemailer` 7 → 8, `concurrently` 9 → 10 (dev). Client: `lucide-svelte` 0.561 → 1.0, `qr` 0.5 → 0.7.
 - Certificates are unchanged: the PDF drawing instructions of all four built-in templates and the landscape/portrait custom designs are identical before and after. QR codes (SVG and matrix) and email messages are identical too. The PDFs only gain a `/UserUnit 1` entry (the default page unit).

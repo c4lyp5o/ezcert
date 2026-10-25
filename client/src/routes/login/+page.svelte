@@ -1,45 +1,10 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import { page } from "$app/state";
-
   import { Label } from "bits-ui";
 
-  let tokenInput = $state("");
   let email = $state("");
   let password = $state("");
   let isLoading = $state(false);
   let error = $state("");
-
-  onMount(async () => {
-    const urlToken = page.url.searchParams.get("token");
-
-    if (urlToken) {
-      tokenInput = urlToken;
-
-      isLoading = true;
-      error = "";
-
-      try {
-        const res = await fetch("/api/v1/auth/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: urlToken }),
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-          window.location.href = "/admin";
-        } else {
-          error = data.message || "Invalid Login";
-        }
-      } catch (e) {
-        error = "Connection failed";
-      } finally {
-        isLoading = false;
-      }
-    }
-  });
 
   async function handleLogin(e: Event) {
     e.preventDefault();
@@ -57,7 +22,7 @@
       if (data.success) {
         window.location.href = "/admin";
       } else {
-        error = data.message;
+        error = data.message || "Login failed";
       }
     } catch {
       error = "Connection failed";
@@ -119,7 +84,7 @@
         <button
           type="submit"
           disabled={isLoading}
-          class="w-full mt-4 h-10 rounded-md bg-white text-black font-semibold hover:bg-zinc-200 transition-all flex items-center justify-center"
+          class="w-full mt-4 h-10 rounded-md bg-white text-black font-semibold hover:bg-zinc-200 transition-all disabled:opacity-50 flex items-center justify-center"
         >
           {#if isLoading}
             <span class="animate-pulse">Verifying...</span>

@@ -7,7 +7,10 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
-	kit: { adapter: adapter() }
+	kit: {
+		// SPA mode: output to ../dist (where the Dockerfile expects it); fallback serves dynamic routes like /event/[id]
+		adapter: adapter({ pages: '../dist', assets: '../dist', fallback: 'index.html' })
+	}
 };
 
 export default config;

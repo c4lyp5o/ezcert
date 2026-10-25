@@ -9,7 +9,7 @@ export const session = $state<{ user: User }>({
 	user: null,
 });
 
-// Initialize from localStorage (run this in your root layout or on mount)
+// Fetch the current tenant from the session cookie
 export async function initSession() {
 	try {
 		const res = await fetch("/api/v1/auth/admin/me", {
@@ -30,11 +30,12 @@ export async function initSession() {
 }
 
 // Logout Action
-export function logoutUser() {
-	fetch("/api/v1/auth/logout", {
+export async function logoutUser() {
+	// Await so the cookie is cleared before navigating away
+	await fetch("/api/v1/auth/admin/logout", {
 		method: "POST",
 		credentials: "include",
-	});
+	}).catch(() => {});
 	session.user = null;
 	window.location.href = "/login";
 }

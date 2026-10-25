@@ -14,8 +14,4 @@ export default defineConfig({
 		},
 	},
 	plugins: [sveltekit(), tailwindcss()],
-	build: {
-		outDir: "../dist",
-		emptyOutDir: true,
-	},
 });

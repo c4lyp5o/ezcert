@@ -3,6 +3,7 @@
     DateFormatter,
     type DateValue,
     getLocalTimeZone,
+    today,
   } from "@internationalized/date";
   import { Calendar } from "bits-ui";
   import { Popover } from "bits-ui";
@@ -11,7 +12,7 @@
   let { value = $bindable() } = $props();
 
   const df = new DateFormatter("en-US", { dateStyle: "medium" });
-  let placeholder = $state<DateValue>();
+  let placeholder = $state<DateValue>(today(getLocalTimeZone()));
 
   function formatDate(date: DateValue | undefined) {
     if (!date) return "Pick a date";
@@ -31,7 +32,8 @@
     class="w-auto p-0 z-50 bg-white border rounded-lg shadow-lg"
     sideOffset={8}
   >
-    <Calendar.Root bind:value bind:placeholder class="p-3 border rounded-md">
+    <Calendar.Root
+      type="single" bind:value bind:placeholder class="p-3 border rounded-md">
       <Calendar.Header class="flex items-center justify-between pt-1 pb-4">
         <Calendar.PrevButton class="p-2 hover:bg-zinc-100 rounded-md">
           ←

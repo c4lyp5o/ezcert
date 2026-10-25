@@ -1,48 +1,41 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import { fade, fly, slide } from "svelte/transition";
-  import {
-    superSession,
-    initSuperSession,
-    logoutSuperAdmin,
-  } from "$lib/superAuth.svelte";
+  import { logoutSuperAdmin } from "$lib/superAuth.svelte";
 
   let { data } = $props();
   let requests = $derived(data.pendingTenants || []);
   let souls = $derived(data.boundSouls || []);
   let processingId = $state<string | null>(null);
 
-  onMount(() => {
-    initSuperSession();
-    if (!superSession.isAuthenticated) {
-      window.location.href = "/";
-    }
-  });
-
   async function handleDecision(tenant: any, decision: "APPROVE" | "REJECT") {
     processingId = tenant.id;
 
     const endpoint =
       decision === "APPROVE"
-        ? "/api/v1/superadmin/approve" // Ensure this matches your backend port/path
+        ? "/api/v1/superadmin/approve"
         : "/api/v1/superadmin/reject";
 
-    await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: tenant.email }),
-    });
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: tenant.email }),
+      });
+      if (!res.ok) {
+        alert(await res.text());
+        return;
+      }
 
-    // Optimistic UI update
-    requests = requests.filter((r: any) => r.id !== tenant.id);
-
-    if (decision === "APPROVE") {
-      souls = [
-        ...souls,
-        { ...tenant, status: "AWAITING_ACTIVATION", conjurations: 0 },
-      ];
+      requests = requests.filter((r: any) => r.id !== tenant.id);
+      if (decision === "APPROVE") {
+        souls = [
+          ...souls,
+          { ...tenant, status: "AWAITING_ACTIVATION", conjurations: 0 },
+        ];
+      }
+    } finally {
+      processingId = null;
     }
-    processingId = null;
   }
 
   async function vanquishSoul(soul: any) {
@@ -54,13 +47,18 @@
       return;
 
     processingId = soul.id;
-    await fetch(`/api/v1superadmin/souls/${soul.id}`, {
-      method: "DELETE",
-    });
-
-    // Remove from UI
-    souls = souls.filter((s: any) => s.id !== soul.id);
-    processingId = null;
+    try {
+      const res = await fetch(`/api/v1/superadmin/souls/${soul.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        alert(await res.text());
+        return;
+      }
+      souls = souls.filter((s: any) => s.id !== soul.id);
+    } finally {
+      processingId = null;
+    }
   }
 
   function handleLogout() {

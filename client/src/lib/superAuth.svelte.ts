@@ -1,17 +1,13 @@
 // client/src/lib/superAuth.svelte.ts
 export const superSession = $state({ isAuthenticated: false });
 
-// Initialize from LocalStorage (run this in your root layout or on mount)
+// Check the superadmin session cookie
 export async function initSuperSession() {
 	try {
 		const res = await fetch("/api/v1/auth/super/me", {
 			credentials: "include",
 		});
-		if (res.ok) {
-			superSession.isAuthenticated = res.ok;
-		} else {
-			superSession.isAuthenticated = false;
-		}
+		superSession.isAuthenticated = res.ok;
 	} catch (err) {
 		console.error("Error initializing session:", err);
 		superSession.isAuthenticated = false;
@@ -19,11 +15,11 @@ export async function initSuperSession() {
 }
 
 // Logout Action (Banished from the Altar)
-export function logoutSuperAdmin() {
-	fetch("/api/v1/superadmin/logout", {
+export async function logoutSuperAdmin() {
+	await fetch("/api/v1/auth/super/logout", {
 		method: "POST",
 		credentials: "include",
-	});
+	}).catch(() => {});
 	superSession.isAuthenticated = false;
 	window.location.href = "/";
 }

@@ -5,12 +5,15 @@
 
   let name = $state("");
   let email = $state("");
+  let ic = $state("");
   let certificateId = $state<string | null>(null);
   let loading = $state(false);
+  let errorMessage = $state("");
 
   async function submitAttendance(e: Event) {
     e.preventDefault();
     loading = true;
+    errorMessage = "";
 
     try {
       const res = await fetch("/api/v1/events/attend", {
@@ -19,14 +22,29 @@
         body: JSON.stringify({
           name,
           email,
+          // Only sent when the organiser collects IC (e.g. for CPD)
+          ...(data.event.collectIc ? { ic } : {}),
           eventId: data.event.id,
         }),
       });
 
-      const result = await res.json();
-      if (result.success) {
-        certificateId = result.attendeeId;
+      // Errors may be JSON ({ message }) or plain text (e.g. 422/429)
+      const text = await res.text();
+      let result: { success?: boolean; attendeeId?: string; message?: string } | null = null;
+      try {
+        result = JSON.parse(text);
+      } catch {
+        result = null;
       }
+      if (result?.success && result.attendeeId) {
+        certificateId = result.attendeeId;
+      } else {
+        errorMessage =
+          result?.message ??
+          (res.ok || !text ? "Check-in failed. Please check your details." : text);
+      }
+    } catch {
+      errorMessage = "Network error. Please try again.";
     } finally {
       loading = false;
     }
@@ -60,9 +78,25 @@
           <span>•</span>
           <span>{data.event.location}</span>
         </div>
+        {#if data.event.hostName}
+          <p class="text-xs text-zinc-500 mt-2">
+            Hosted by {data.event.hostName}
+          </p>
+        {/if}
       </div>
 
-      {#if !certificateId}
+      {#if !data.event.isOpen && !certificateId}
+        <div class="text-center py-6 text-zinc-400 text-sm">
+          Check-in for this event is currently closed.
+        </div>
+      {:else if !certificateId}
+        {#if errorMessage}
+          <div
+            class="mb-4 p-3 rounded bg-red-900/20 border border-red-900/50 text-red-400 text-xs text-center"
+          >
+            {errorMessage}
+          </div>
+        {/if}
         <form onsubmit={submitAttendance} class="space-y-5">
           <div class="grid gap-2">
             <Label.Root
@@ -94,6 +128,29 @@
             />
           </div>
 
+          {#if data.event.collectIc}
+            <div class="grid gap-2">
+              <label
+                for="ic"
+                class="text-xs font-medium uppercase tracking-wider text-zinc-500"
+              >
+                IC Number <span class="normal-case text-zinc-600">(for CPD)</span>
+              </label>
+              <input
+                id="ic"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                bind:value={ic}
+                required
+                pattern={"[0-9]{6}-?[0-9]{2}-?[0-9]{4}"}
+                title="12-digit MyKad number, e.g. 900101-14-5678"
+                placeholder="900101-14-5678"
+                class="flex h-11 w-full rounded-md border border-zinc-800 bg-black px-3 py-2 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+              />
+            </div>
+          {/if}
+
           <button
             type="submit"
             disabled={loading}
@@ -108,6 +165,20 @@
               Confirm Attendance
             {/if}
           </button>
+
+          <p class="text-[11px] leading-relaxed text-zinc-500">
+            <span class="font-semibold text-zinc-400">Your privacy:</span>
+            {data.event.hostName ?? "The organiser"} keeps your name, email{data
+              .event.collectIc
+              ? " and IC number"
+              : ""} encrypted, to issue and verify your certificate{data.event
+              .collectIc
+              ? " and for CPD reporting"
+              : ""}. Your IC is never shown on the certificate or its public verification
+            page; the verification page shows only your name and the event. Your details are
+            kept until the organiser deletes them. Contact {data.event.hostName ??
+              "the organiser"} to have them removed.
+          </p>
         </form>
       {:else}
         <div class="text-center py-4">

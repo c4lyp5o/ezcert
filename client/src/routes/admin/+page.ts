@@ -10,20 +10,21 @@ export const load: PageLoad = async ({ fetch }) => {
 	if (!session.user) throw redirect(302, "/login");
 
 	try {
-		// console.log("Session info", session.user);
-		const res = await fetch("/api/v1/admin/events", {
-			credentials: "include",
-		});
+		const [eventsRes, designsRes] = await Promise.all([
+			fetch("/api/v1/admin/events", { credentials: "include" }),
+			fetch("/api/v1/admin/designs", { credentials: "include" }),
+		]);
 
-		if (!res.ok) {
-			console.error("Failed to fetch events", { status: res.status });
-			return { events: [] };
+		if (!eventsRes.ok) {
+			console.error("Failed to fetch events", { status: eventsRes.status });
 		}
-
-		const events = await res.json();
-		return { events };
+		const events = eventsRes.ok ? await eventsRes.json() : [];
+		const designs: { id: string; name: string }[] = designsRes.ok
+			? await designsRes.json()
+			: [];
+		return { events, designs };
 	} catch (err) {
 		console.error("Error fetching events:", err);
-		return { events: [] };
+		return { events: [], designs: [] };
 	}
 };

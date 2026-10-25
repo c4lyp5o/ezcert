@@ -2,6 +2,15 @@
 
 Easy event attendance with certificate generation. Organisations (tenants) register, are approved by a superadmin, create events, and share a QR code. Attendees check in on their phone and download a PDF certificate immediately.
 
+[![CI](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml/badge.svg)](https://github.com/c4lyp5o/ezcert/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/c4lyp5o/ezcert/graph/badge.svg)](https://codecov.io/gh/c4lyp5o/ezcert)
+[![License: MIT](https://img.shields.io/github/license/c4lyp5o/ezcert)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/c4lyp5o/ezcert/main)](https://github.com/c4lyp5o/ezcert/commits/main)
+[![Bun](https://img.shields.io/badge/Bun-1.3-000000?logo=bun&logoColor=white)](https://bun.sh)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-3-FF3E00?logo=svelte&logoColor=white)](https://svelte.dev/docs/kit)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5%20%7C%206-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-025E8C?logo=dependabot&logoColor=white)](.github/dependabot.yml)
+
 [Changelog](CHANGELOG.md) · [Versioning](VERSION.md) · [Contributing](CONTRIBUTING.md) · [Agent guide](AGENTS.md)
 
 ## Stack
@@ -12,8 +21,9 @@ Easy event attendance with certificate generation. Organisations (tenants) regis
 | Database | PostgreSQL via [Drizzle ORM](https://orm.drizzle.team)               |
 | PDFs     | [PDFKit](https://pdfkit.org), streamed per request                   |
 | Email    | Nodemailer (SMTP)                                                    |
+| Images   | [sharp](https://sharp.pixelplumbing.com) (upload sanitising), fflate + fast-xml-parser (PPTX import) |
 | Logging  | [deadslog](https://www.npmjs.com/package/deadslog)                   |
-| Client   | SvelteKit (SPA, `adapter-static`) + Tailwind 4 + bits-ui             |
+| Client   | SvelteKit 3 (SPA, `adapter-static`) + Svelte 5 + Vite 8 + Tailwind 4 + bits-ui |
 | Tests    | `bun test` + in-memory Postgres ([PGlite](https://pglite.dev))       |
 
 ## Project layout
@@ -24,17 +34,23 @@ src/
   app.ts              # Elysia app (CORS, request/error logging, modules), imported by tests
   logger.ts           # deadslog instance (LOG_LEVEL, LOG_FILE_PATH)
   plugins/auth.ts     # JWT plugins + adminAuth / superAuth macros, shared cookie options
-  modules/            # route groups: register, auth, admin, superadmin, public
-  db/                 # Drizzle schema + Postgres connection
-  cert-templates.ts   # PDF certificate designs (TEMPLATE_IDS)
+  plugins/rate-limit.ts # per-IP rate limiter (check-in, uploads)
+  modules/            # route groups: register, auth, admin, superadmin, public, designs
+  db/                 # Drizzle schema + Postgres connection (ssl.ts = TLS policy)
+  crypto/             # field encryption for participant data + legacy-row migration
+  designs/            # custom certificate designs: layout, renderer, PPTX import, image sanitiser
+  storage.ts          # local-disk uploads under UPLOAD_DIR
+  cert-templates.ts   # built-in PDF certificate designs (TEMPLATE_IDS)
   email-templates.ts  # activation email HTML
-client/               # SvelteKit app, builds into ../dist
+scripts/              # one-off scripts (db:encrypt-pii)
+client/               # SvelteKit 3 app (config in vite.config.ts), builds into ../dist
 tests/                # API + template tests (see Testing)
+.github/              # CI workflow and Dependabot config
 ```
 
 ## Getting started
 
-Requirements: Bun ≥ 1.3, PostgreSQL.
+Requirements: Bun 1.3.x, Node 22.17+ (used by the client tooling) and PostgreSQL (tests don't need a database).
 
 ```bash
 bun run install:all          # server + client deps
@@ -59,7 +75,7 @@ See [`.env.example`](.env.example). Notes:
 3. **Tenant activates** via the emailed link (`/activate?token=…`, valid 1h) → `ACTIVE`, can log in at `/login`.
 4. **Tenant creates events** in `/admin`, picks a certificate template, opens check-in, and shares the QR code or link.
 5. **Attendee checks in** at `/event/:id` (only while the event is open) and downloads the certificate. Re-submitting the same email returns the same certificate.
-6. Tenant exports attendees as CSV, toggles check-in, or deletes the event.
+6. Tenant exports attendees as CSV, manages or deletes participants, toggles check-in, or deletes the event. Organisers and attendees can switch between light and dark mode.
 
 ## API
 
@@ -77,8 +93,12 @@ All routes are under `/api/v1`. Auth is via httpOnly cookies: `admin_token` (ten
 | GET    | `/auth/super/me`                  | super  | Current superadmin (`id`, `username`)               |
 | PATCH  | `/admin/tenant`                   | tenant | Update name/email (`409` if email taken)            |
 | GET    | `/admin/events`                   | tenant | Own events, newest first, with attendees            |
-| POST   | `/admin/events`                   | tenant | Create event (`name`, ISO `date`, `location`, `template`, `isOpen?`) |
+| POST   | `/admin/events`                   | tenant | Create event (`name`, ISO `date`, `location`, `template`, `isOpen?`, `collectIc?`) |
 | PATCH  | `/admin/events/status/:id`        | tenant | Open/close check-in (`isOpen`)                      |
+| PATCH  | `/admin/events/:id/settings`      | tenant | Turn IC collection on/off (`collectIc`)             |
+| GET    | `/admin/events/:id/attendees.csv` | tenant | Export participants as CSV (full IC; audit-logged)  |
+| DELETE | `/admin/events/:id/attendees/:attendeeId` | tenant | Delete one participant                      |
+| DELETE | `/admin/events/:id/attendees`     | tenant | Delete all participants of an event                 |
 | DELETE | `/admin/events/:id`               | tenant | Delete own event (cascades attendees)               |
 | GET    | `/superadmin/pending`             | super  | Tenants awaiting review                             |
 | POST   | `/superadmin/approve`             | super  | Approve + email activation link (`502` if email fails) |
@@ -101,7 +121,7 @@ All routes are under `/api/v1`. Auth is via httpOnly cookies: `admin_token` (ten
 | GET    | `/admin/designs/starter.pptx`     | tenant | Download the PPTX starter (`?orientation=landscape\|portrait`) |
 | GET    | `/events/:id`                     | none   | Public event details + host name                    |
 | GET    | `/events/verify/:attendeeId`      | none   | Verify a certificate                                |
-| POST   | `/events/attend`                  | none   | Check in (`name`, `email`, `eventId`)               |
+| POST   | `/events/attend`                  | none   | Check in (`name`, `email`, `eventId`, `ic` if the event collects it) |
 | GET    | `/events/certificate/:attendeeId` | none   | Download the PDF certificate                        |
 
 Certificate templates: `default`, `tech-dark`, `elegant-gold`, `retro-pixel` (see `src/cert-templates.ts`). Long names and titles shrink to fit on one line.
@@ -152,6 +172,7 @@ Configure with `LOG_LEVEL` (default `info`; `silent` disables) and `LOG_FILE_PAT
 
 ```bash
 bun run test          # API + certificate tests
+bun run test:coverage # same, plus a coverage report (coverage/lcov.info)
 bun run test:watch
 bun run typecheck     # server tsc + client svelte-check
 ```
@@ -172,6 +193,14 @@ Requests go through `app.handle()`, so no port is opened.
 | `tests/superadmin.test.ts`    | Pending queue, approve/reject rules, email failure, cascades   |
 | `tests/public.test.ts`        | Event details, check-in rules, dedupe, PDF + filename safety   |
 | `tests/cert-templates.test.ts`| Every template renders on one page with very long text         |
+| `tests/designs.test.ts`       | Design CRUD, layout validation, portrait/landscape, previews, tenant isolation |
+| `tests/assets.test.ts`        | Image upload sanitising, quotas, rate limit, owner-only access |
+| `tests/pptx-import.test.ts`   | PPTX import, starter templates, zip-bomb and macro rejection   |
+| `tests/privacy.test.ts`       | Encryption, IC rules and masking, CSV export, deletion, DB TLS policy |
+
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every push and pull request to `main` and `development`: install (frozen lockfiles), `bun run test:coverage`, `bun run typecheck` and `bun run build:all`, then uploads coverage to [Codecov](https://codecov.io/gh/c4lyp5o/ezcert). It needs no database. The upload uses the `CODECOV_TOKEN` repository secret and never fails the build. Bun is pinned to 1.3.14 to match `bun-types`. [Dependabot](.github/dependabot.yml) opens weekly update PRs (minor/patch grouped); majors are reviewed by hand.
 
 ## Building & deployment
 
@@ -185,3 +214,7 @@ bun run start         # pm2-runtime with ecosystem.config.js
 > **Uploads:** mount `UPLOAD_DIR` (default `/app/uploads` in the container) as a persistent volume, e.g. `-v ezcert-uploads:/app/uploads`. Otherwise uploaded logos and backgrounds are lost when the container is replaced.
 
 > **Note:** the Dockerfile currently copies `.env` into the image. Prefer injecting environment variables at runtime (`docker run --env-file .env …`) so secrets are not baked into image layers. PM2 cluster mode is unreliable with the Bun interpreter; use `exec_mode: "fork"` if you see issues.
+
+## License
+
+[MIT](LICENSE) © 2026 c4lyp5o.

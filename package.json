@@ -1,6 +1,7 @@
 {
 	"name": "ezcert",
 	"version": "1.0.0",
+	"license": "MIT",
 	"scripts": {
 		"install:client": "cd client && bun install",
 		"install:server": "bun install",
@@ -21,6 +22,7 @@
 		"db:seed-super": "bun --env-file .env tests/seed-super.ts",
 		"db:encrypt-pii": "bun --env-file .env scripts/encrypt-attendees.ts",
 		"test": "bun test --preload ./tests/setup.ts ./tests",
+		"test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --preload ./tests/setup.ts ./tests",
 		"test:watch": "bun test --preload ./tests/setup.ts --watch ./tests",
 		"typecheck": "bunx -p typescript@5.9.3 tsc --noEmit -p . && cd client && bun run check"
 	},

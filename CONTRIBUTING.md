@@ -4,7 +4,7 @@ Thanks for helping out! This guide covers local setup, the workflow we expect, a
 
 ## Setup
 
-Requirements: [Bun](https://bun.sh) 1.3.x and PostgreSQL (only needed to run the app; tests don't need it).
+Requirements: [Bun](https://bun.sh) 1.3.x, Node 22.17+ (client tooling) and PostgreSQL (only needed to run the app; tests don't need it).
 
 ```bash
 bun run install:all
@@ -18,7 +18,7 @@ See the [README](README.md) for architecture, the API table and env vars.
 
 ## Workflow
 
-1. Branch from `main`: `feat/<short-name>`, `fix/<short-name>`, `docs/…`, `chore/…`.
+1. Branch from `development`: `feat/<short-name>`, `fix/<short-name>`, `docs/…`, `chore/…`. `main` is the release branch; `development` is merged into it for releases.
 2. Keep changes focused. Unrelated refactors go in their own PR.
 3. Write or update tests alongside the change (see below).
 4. Run the checks:
@@ -28,7 +28,7 @@ See the [README](README.md) for architecture, the API table and env vars.
    bun run build:all
    ```
 5. Add an entry under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). Mark breaking API changes as **Breaking**.
-6. Open a PR describing what changed, why, and how you tested it.
+6. Open a PR into `development` describing what changed, why, and how you tested it. CI (`.github/workflows/ci.yml`) runs the same three checks and must be green before merging.
 
 ### Commit messages
 
@@ -54,6 +54,8 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. Add `!`
 
 ### Client (`client/`)
 - Svelte 5 runes (`$state`, `$derived`, `$props`). Update arrays immutably (`events = events.map(...)`).
+- SvelteKit 3: options live in `client/vite.config.ts` (there is no `svelte.config.js`). Import from `src/lib` as `#lib/name.js` (with the extension), not `$lib`.
+- Colours: the UI is dark-first (`bg-black`, `text-white`, zinc greys); light mode remaps those palette variables in `client/src/app.css`, so don't add per-class `dark:` variants. Wrap anything that must look the same in both themes (QR codes, certificate swatches) in `data-theme-lock`.
 - All API calls go to relative `/api/v1/...` paths (the dev server proxies them).
 - Run `bun run check` in `client/`; it must report 0 errors and 0 warnings.
 - Style: 2-space indent, Tailwind classes.

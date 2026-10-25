@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Added: continuous integration
+- GitHub Actions workflow (`.github/workflows/ci.yml`): on every push and PR to `main` and `development` it installs with frozen lockfiles and runs `bun run test`, `bun run typecheck` and `bun run build:all` (Bun 1.3.14, Node 24, no secrets).
+- Coverage: `bun run test:coverage` writes `coverage/lcov.info`; CI uploads it to Codecov (`codecov.yml`). The report counts server code only (tests are excluded via `bunfig.toml`).
+- MIT `LICENSE`, and a README license section and badge.
+- README badges: CI, Codecov, license, last commit, Bun, SvelteKit, TypeScript, Dependabot.
+- Dependabot (`.github/dependabot.yml`): weekly updates for the server, the client and the workflow actions, with minor/patch grouped. `bun-types` and the client's TypeScript major are held back deliberately.
+- Docs: README (stack, layout, API table, test table, CI section), CONTRIBUTING (branching from `development`, SvelteKit 3 and theme conventions), VERSION release steps and AGENTS brought up to date.
+
 ### Changed: major dependency upgrades
 - Server: `nodemailer` 7 → 10, `pdfkit` 0.17 → 0.20, `@types/nodemailer` 7 → 8, `concurrently` 9 → 10 (dev). Client: `lucide-svelte` 0.561 → 1.0, `qr` 0.5 → 0.7.
 - Certificates are unchanged: the PDF drawing instructions of all four built-in templates and the landscape/portrait custom designs are identical before and after. QR codes (SVG and matrix) and email messages are identical too. The PDFs only gain a `/UserUnit 1` entry (the default page unit).

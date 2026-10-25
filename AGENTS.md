@@ -21,7 +21,7 @@ Read [README.md](README.md) for the API table and user flows.
 | Build client → `dist/`  | `bun run build:all`                       |
 | Apply schema to DB      | `bun run db:push` (touches the real DB in `.env`; ask first) |
 
-Before declaring work done, run `bun run test` and `bun run typecheck`. If the client changed, also run `bun run build:all`.
+Before declaring work done, run `bun run test` and `bun run typecheck`. If the client changed, also run `bun run build:all`. CI (`.github/workflows/ci.yml`) runs these three on every push and PR to `main` and `development` (tests via `bun run test:coverage`, uploaded to Codecov); keep it green. Work on a branch off `development` and open PRs into it.
 
 ## Architecture map
 
@@ -42,6 +42,7 @@ Before declaring work done, run `bun run test` and `bun run typecheck`. If the c
 - `src/modules/designs.ts`: asset and design routes (quotas, rate limit, ownership checks).
 - `src/storage.ts`: local-disk storage under `UPLOAD_DIR`. Keys are server-generated and validated.
 - `src/logger.ts`: deadslog instance.
+- `.github/`: `workflows/ci.yml` (test, typecheck, build) and `dependabot.yml` (weekly; ignores `bun-types` minor/major and client TypeScript major on purpose).
 - `tests/setup.ts`: preload that mocks `src/db` with PGlite and `nodemailer` with `mailbox`, and truncates tables before each test.
 
 ## Rules

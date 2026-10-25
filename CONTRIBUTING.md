@@ -57,7 +57,7 @@ Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. Add `!`
 - SvelteKit 3: options live in `client/vite.config.ts` (there is no `svelte.config.js`). Import from `src/lib` as `#lib/name.js` (with the extension), not `$lib`.
 - Colours: the UI is dark-first (`bg-black`, `text-white`, zinc greys); light mode remaps those palette variables in `client/src/app.css`, so don't add per-class `dark:` variants. Wrap anything that must look the same in both themes (QR codes, certificate swatches) in `data-theme-lock`.
 - All API calls go to relative `/api/v1/...` paths (the dev server proxies them).
-- Run `bun run check` in `client/`; it must report 0 errors and 0 warnings.
+- Run `bun run check` in `client/`; it must report 0 errors and 0 warnings. Logic in `src/lib` and in `+page.ts` load functions gets a Vitest test next to it (`bun run test:client`); `designs.svelte.test.ts` also checks the client against the server's design rules.
 - Style: 2-space indent, Tailwind classes.
 
 ### Database

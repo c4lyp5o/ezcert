@@ -1,4 +1,12 @@
-# Server coverage only: the client has no automated tests yet, so it isn't counted.
+# Two flags: "server" (src/) and "client" (client/src/lib and the page load functions).
+# Svelte components have no tests yet, so they aren't in the client figure.
+flags:
+  server:
+    paths:
+      - src/
+  client:
+    paths:
+      - client/src/
 coverage:
   status:
     project:

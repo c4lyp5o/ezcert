@@ -23,6 +23,7 @@
 		"db:encrypt-pii": "bun --env-file .env scripts/encrypt-attendees.ts",
 		"test": "bun test --preload ./tests/setup.ts ./tests",
 		"test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --preload ./tests/setup.ts ./tests",
+		"test:client": "cd client && bun run test",
 		"test:watch": "bun test --preload ./tests/setup.ts --watch ./tests",
 		"typecheck": "bunx -p typescript@5.9.3 tsc --noEmit -p . && cd client && bun run check"
 	},
